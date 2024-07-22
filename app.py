@@ -8,8 +8,7 @@ class Application(tk.Tk):
         self.geometry("1500x800")
 
         self.round = 1
-
-
+        
         self.tableTopText = tk.Text(self, height=1, width=10)
         self.tableTopText.insert(tk.END, "ROUNDS")
         self.tableTopText.place(x=750, y=0)
@@ -30,14 +29,13 @@ class Application(tk.Tk):
         self.roundOnText.insert(tk.END, "OUTCOME OF ROUND: " + str(self.round))
         self.roundOnText.place(x=500, y=80)
 
-        self.roundWinButton = tk.Button(self, text="Round Win", command=self.roundWinButtonAction)
+      self.roundWinButton = tk.Button(self, text="Round Win", command=self.roundWinButtonAction)
         self.roundWinButton.config(height=3, width=25, bg="green")
         self.roundWinButton.place(x=200, y=80)
 
         self.roundLossButton = tk.Button(self, text="Round Loss", command=self.roundLossButtonAction)
         self.roundLossButton.config(height=3, width=25, bg="red")
         self.roundLossButton.place(x=1200, y=80)
-
 
 
     def roundWinButtonAction(self):
@@ -54,14 +52,6 @@ class Application(tk.Tk):
         self.roundOnText.delete('1.0', tk.END)
         self.roundOnText.insert(tk.END, "OUTCOME OF ROUND: " + str(self.round))
 
-
-    def fill_cell(self):
-        row = 1  # Example row index (second row)
-        col = 5  # Example column index
-        self.cells[row][col].config(text='x')
-
-    def button_clicked(self):
-        messagebox.showinfo("Button Clicked", "You clicked a button!")
 
 # Create and run the application
 if __name__ == "__main__":
