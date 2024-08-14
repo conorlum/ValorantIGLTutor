@@ -54,7 +54,12 @@ class Application(tk.Tk):
 		self.roundTypeCycleButton.place(x=1100, y=150)
 
 
-		self.mapPlanButtons = []
+		self.generateTopMapPlanButtons()
+		self.generateBottomMapPlanButtons()
+
+	
+	def generateTopMapPlanButtons(self):
+		self.mapPlanTopButtons = []
 		plansLocations = self.getGoodPlans()
 
 		imageLeftTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(0))
@@ -67,7 +72,7 @@ class Application(tk.Tk):
 		textLeftTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
 		textLeftTop.insert(tk.END, plan)
 		textLeftTop.place(x=200, y=220)
-		self.mapPlanButtons.append({"imageButton" : imageLeftTop, "planLocation" : plansLocations[0], "buttonId" : 0, "text" : textLeftTop})
+		self.mapPlanTopButtons.append({"imageButton" : imageLeftTop, "planLocation" : plansLocations[0], "buttonId" : 0, "text" : textLeftTop})
 
 		imageMiddleTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(1))
 		image = self.makeThumbnail(plansLocations[1])
@@ -79,7 +84,7 @@ class Application(tk.Tk):
 		textMiddleTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
 		textMiddleTop.insert(tk.END, plan)
 		textMiddleTop.place(x=600, y=220)
-		self.mapPlanButtons.append({"imageButton" : imageMiddleTop, "planLocation" : plansLocations[1], "buttonId" : 1, "text" : textMiddleTop})
+		self.mapPlanTopButtons.append({"imageButton" : imageMiddleTop, "planLocation" : plansLocations[1], "buttonId" : 1, "text" : textMiddleTop})
 
 		imageRightTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(2))
 		image = self.makeThumbnail(plansLocations[2])
@@ -91,56 +96,48 @@ class Application(tk.Tk):
 		textRightTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
 		textRightTop.insert(tk.END, plan)
 		textRightTop.place(x=1000, y=220)
-		self.mapPlanButtons.append({"imageButton" : imageRightTop, "planLocation" : plansLocations[2], "buttonId" : 2, "text" : textRightTop})
+		self.mapPlanTopButtons.append({"imageButton" : imageRightTop, "planLocation" : plansLocations[2], "buttonId" : 2, "text" : textRightTop})
 
+	def generateBottomMapPlanButtons(self):
+		self.mapPlanBottomButtons = []
+		plansLocations = self.getDefaultPlans()
 
-		# self.imageLabel1 = tk.Button(self, command=lambda: self.mapPlanButtonAction("button 1"))
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel1.config(image=image)
-		# self.imageLabel1.image = image
-		# self.imageLabel1.place(x=200,y=250)
+		imageLeftTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(3))
+		image = self.makeThumbnail(plansLocations[0])
+		image = ImageTk.PhotoImage(image)
+		imageLeftTop.config(image=image)
+		imageLeftTop.image = image
+		imageLeftTop.place(x=200,y=650)
+		plan = self.getPlanNameFromLocation(plansLocations[0])
+		textLeftTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
+		textLeftTop.insert(tk.END, plan)
+		textLeftTop.place(x=200, y=620)
+		self.mapPlanBottomButtons.append({"imageButton" : imageLeftTop, "planLocation" : plansLocations[0], "buttonId" : 3, "text" : textLeftTop})
 
-		# self.roundOnText = tk.Text(self, height=1, width=23, font=("Helvetica", 32))
+		imageMiddleTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(4))
+		image = self.makeThumbnail(plansLocations[1])
+		image = ImageTk.PhotoImage(image)
+		imageMiddleTop.config(image=image)
+		imageMiddleTop.image = image
+		imageMiddleTop.place(x=600,y=650)
+		plan = self.getPlanNameFromLocation(plansLocations[1])
+		textMiddleTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
+		textMiddleTop.insert(tk.END, plan)
+		textMiddleTop.place(x=600, y=620)
+		self.mapPlanBottomButtons.append({"imageButton" : imageMiddleTop, "planLocation" : plansLocations[1], "buttonId" : 4, "text" : textMiddleTop})
 
-		# self.imageLabel2 = tk.Button(self, command=lambda: self.mapPlanButtonAction("button 2"))
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel2.config(image=image)
-		# self.imageLabel2.image = image
-		# self.imageLabel2.place(x=600,y=250)
+		imageRightTop = tk.Button(self, command=lambda: self.mapPlanButtonAction(5))
+		image = self.makeThumbnail(plansLocations[2])
+		image = ImageTk.PhotoImage(image)
+		imageRightTop.config(image=image)
+		imageRightTop.image = image
+		imageRightTop.place(x=1000,y=650)
+		plan = self.getPlanNameFromLocation(plansLocations[2])
+		textRightTop = tk.Text(self, height=1, width=20, font=("Helvetica", 18))
+		textRightTop.insert(tk.END, plan)
+		textRightTop.place(x=1000, y=620)
+		self.mapPlanBottomButtons.append({"imageButton" : imageRightTop, "planLocation" : plansLocations[2], "buttonId" : 5, "text" : textRightTop})
 
-		# self.imageLabel3 = tk.Button(self)
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel3.config(image=image)
-		# self.imageLabel3.image = image
-		# self.imageLabel3.place(x=1000,y=250)
-
-
-
-
-		# self.imageLabel4 = tk.Button(self)
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel4.config(image=image)
-		# self.imageLabel4.image = image
-		# self.imageLabel4.place(x=200,y=650)
-
-		# self.imageLabel5 = tk.Button(self)
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel5.config(image=image)
-		# self.imageLabel5.image = image
-		# self.imageLabel5.place(x=600,y=650)
-
-		# self.imageLabel6 = tk.Button(self)
-		# image = self.makeThumbnail("./Ascent/ECO\\A Rush.png")
-		# image = ImageTk.PhotoImage(image)
-		# self.imageLabel6.config(image=image)
-		# self.imageLabel6.image = image
-		# self.imageLabel6.place(x=1000,y=650)
-		
 
 
 	def getPossiblePlans(self):
@@ -184,6 +181,7 @@ class Application(tk.Tk):
 		self.round += 1
 		self.refreshRoundOnText()
 		self.refreshPlanText()
+		self.generateTopMapPlanButtons()
 
 	def roundLossButtonAction(self):
 		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
@@ -191,10 +189,12 @@ class Application(tk.Tk):
 		self.round += 1
 		self.refreshRoundOnText()
 		self.refreshPlanText()
+		self.generateTopMapPlanButtons()
 
 	def roundTypeCycleButtonAction(self):
 		self.roundPlanType = (self.roundPlanType + 1) % 3
 		self.refreshPlanText()
+		self.generateTopMapPlanButtons()
 
 
 	def refreshRoundOnText(self):
