@@ -13,8 +13,12 @@ class Application(tk.Tk):
 		
 
 		self.round = 1
+		self.rounds = []
 		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
 		self.roundPlanType = 0
+		self.PISTOL = 0
+		self.ECO = 1
+		self.FULLBUY = 2
 		self.mapName = "Ascent"
 		
 		self.tableTopText = tk.Text(self, height=1, width=10)
@@ -32,6 +36,8 @@ class Application(tk.Tk):
 			self.tableOutcomeText = tk.Text(self, bg="white", height=1, width=5)
 			self.tableOutcomeText.place(x=20+45*i, y=50)
 			self.tableOutcomeTexts.append(self.tableOutcomeText)
+
+		#can add plan type underneath maybe?  chosenText is given and possible to use
 
 		self.roundOnText = tk.Text(self, height=1, width=23, font=("Helvetica", 32))
 		self.roundOnText.insert(tk.END, "OUTCOME OF ROUND: " + str(self.round))
@@ -205,20 +211,67 @@ class Application(tk.Tk):
 		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
 		tableOutcomeText.config(bg="green")
 		self.round += 1
+		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : "W"})
+		self.roundPlanTypeOutcomeLogic()
 		self.refreshRoundOnText()
 		self.refreshPlanText()
 		self.refreshMapPlanButtons()
+
 
 	def roundLossButtonAction(self):
 		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
 		tableOutcomeText.config(bg="red")
 		self.round += 1
+		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : "L"})
+		self.roundPlanTypeOutcomeLogic()
 		self.refreshRoundOnText()
 		self.refreshPlanText()
 		self.refreshMapPlanButtons()
 
+	def roundPlanTypeOutcomeLogic(self):
+		roundsIndex = self.round - 2
+		self.roundPlanType = self.ECO
+
+		if self.rounds[roundsIndex]["roundType"] == self.FULLBUY and self.rounds[roundsIndex]["outcome"] == "W":
+			self.roundPlanType = self.FULLBUY
+
+		if self.rounds[roundsIndex]["roundType"] == self.ECO:
+			self.roundPlanType = self.FULLBUY
+
+		if self.round % 12 == 1:
+			self.roundPlanType = self.PISTOL
+
+		if self.round % 12 == 2:
+			if self.rounds[0]["outcome"] == "W":
+				self.roundPlanType = self.FULLBUY
+			else:
+				self.roundPlanType = self.ECO
+		if self.round % 12 == 3:
+			if self.rounds[0]["outcome"] == "W":
+				self.roundPlanType = self.ECO
+			else:
+				self.roundPlanType = self.FULLBUY
+		if self.round % 12 == 4:
+			if self.rounds[0]["outcome"] == "W":
+				self.roundPlanType = self.FULLBUY
+			elif self.rounds[roundsIndex]["outcome"] == "W":
+				self.roundPlanType = self.FULLBUY
+			else:
+				self.roundPlanType = self.ECO
+
+		
+
+
 	def roundTypeCycleButtonAction(self):
-		self.roundPlanType = (self.roundPlanType + 1) % 3
+		print(self.roundPlanType)
+		
+		if self.roundPlanType == self.ECO:
+			self.roundPlanType = self.FULLBUY
+		else:
+			self.roundPlanType = self.ECO
+
+		if self.round % 12 == 1:
+			self.roundPlanType = self.PISTOL
 		self.refreshPlanText()
 		self.refreshMapPlanButtons()
 
