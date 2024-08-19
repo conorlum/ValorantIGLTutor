@@ -20,7 +20,58 @@ class Application(tk.Tk):
 		self.ECO = 1
 		self.FULLBUY = 2
 		self.mapName = "Ascent"
+
+		self.generateMapPickerScreen()
 		
+	
+	def resetRoot(self):
+		for widget in self.winfo_children():
+			widget.destroy()
+
+	def generateMapPickerScreen(self):
+		mapImagesLocations = glob.glob("./Maps/*")
+		print(mapImagesLocations)
+		self.tableTopText = tk.Text(self, height=1, width=11, font=("Helvetica", 32))
+		self.tableTopText.insert(tk.END, "Pick the map")
+		self.tableTopText.place(x=650, y=0)
+
+		mapAbyssButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Abyss"))
+		image = self.makeMapSelectionImage(mapImagesLocations[0])
+		image = ImageTk.PhotoImage(image)
+		mapAbyssButton.config(image=image)
+		mapAbyssButton.image = image
+		mapAbyssButton.place(x=50,y=100)
+
+		mapAscentButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Ascent"))
+		image = self.makeMapSelectionImage(mapImagesLocations[1])
+		image = ImageTk.PhotoImage(image)
+		mapAscentButton.config(image=image)
+		mapAscentButton.image = image
+		mapAscentButton.place(x=400,y=100)
+
+		mapBindButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Bind"))
+		image = self.makeMapSelectionImage(mapImagesLocations[2])
+		image = ImageTk.PhotoImage(image)
+		mapBindButton.config(image=image)
+		mapBindButton.image = image
+		mapBindButton.place(x=750,y=100)
+
+		mapBreezeButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Breeze"))
+		image = self.makeMapSelectionImage(mapImagesLocations[3])
+		image = ImageTk.PhotoImage(image)
+		mapBreezeButton.config(image=image)
+		mapBreezeButton.image = image
+		mapBreezeButton.place(x=1100,y=100)
+
+	def makeMapSelectionImage(self, location):
+		image = PIL.Image.open(location)
+		image = image.resize((300,200))
+		return image
+		
+	def mapSelectionButtonAction(self, mapId):
+		print(mapId)
+
+	def generateMapPlanPickerScreen(self):
 		self.tableTopText = tk.Text(self, height=1, width=10)
 		self.tableTopText.insert(tk.END, "ROUNDS")
 		self.tableTopText.place(x=750, y=0)
@@ -263,7 +314,6 @@ class Application(tk.Tk):
 
 
 	def roundTypeCycleButtonAction(self):
-		print(self.roundPlanType)
 		
 		if self.roundPlanType == self.ECO:
 			self.roundPlanType = self.FULLBUY
