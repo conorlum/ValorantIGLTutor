@@ -5,6 +5,7 @@ import PIL
 from PIL import Image, ImageTk
 import glob
 
+
 class Application(tk.Tk):
 	def __init__(self):
 		super().__init__()
@@ -19,57 +20,67 @@ class Application(tk.Tk):
 		self.PISTOL = 0
 		self.ECO = 1
 		self.FULLBUY = 2
-		self.mapName = "Ascent"
+		self.mapName = ""
 
 		self.generateMapPickerScreen()
 		
-	
 	def resetRoot(self):
 		for widget in self.winfo_children():
 			widget.destroy()
 
 	def generateMapPickerScreen(self):
-		mapImagesLocations = glob.glob("./Maps/*")
-		print(mapImagesLocations)
 		self.tableTopText = tk.Text(self, height=1, width=11, font=("Helvetica", 32))
 		self.tableTopText.insert(tk.END, "Pick the map")
 		self.tableTopText.place(x=650, y=0)
 
-		mapAbyssButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Abyss"))
-		image = self.makeMapSelectionImage(mapImagesLocations[0])
-		image = ImageTk.PhotoImage(image)
-		mapAbyssButton.config(image=image)
-		mapAbyssButton.image = image
-		mapAbyssButton.place(x=50,y=100)
+		mapNamesToCoordinates = {
+		"Abyss" : (50, 150), 
+		"Ascent" : (400, 150), 
+		"Bind" : (750, 150), 
+		"Breeze" : (1100, 150),
+		"Fracture" : (50, 450),
+		"Haven" : (400, 450),
+		"Icebox" : (750, 450),
+		"Lotus" : (1100, 450),
+		"Pearl" : (50, 750),
+		"Split" : (400, 750),
+		"Sunset" : (750, 750)
+		}
 
-		mapAscentButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Ascent"))
-		image = self.makeMapSelectionImage(mapImagesLocations[1])
-		image = ImageTk.PhotoImage(image)
-		mapAscentButton.config(image=image)
-		mapAscentButton.image = image
-		mapAscentButton.place(x=400,y=100)
+		mapNameToButton = {}
 
-		mapBindButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Bind"))
-		image = self.makeMapSelectionImage(mapImagesLocations[2])
-		image = ImageTk.PhotoImage(image)
-		mapBindButton.config(image=image)
-		mapBindButton.image = image
-		mapBindButton.place(x=750,y=100)
+		for key in mapNamesToCoordinates.keys():
+			response = self.generateMapButton(key, mapNamesToCoordinates[key])
+			mapNameToButton.update(response)
 
-		mapBreezeButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction("Breeze"))
-		image = self.makeMapSelectionImage(mapImagesLocations[3])
+
+	def generateMapButton(self, mapName, coordinates):
+		mapImagesLocations = glob.glob("./mapThumbnails/*")
+		mapButton = tk.Button(self, command=lambda: self.mapSelectionButtonAction(mapName))
+		mapLocation = ""
+		for location in mapImagesLocations:
+			if mapName in location:
+				mapLocation = location
+
+		image = self.makeMapSelectionImage(mapLocation)
 		image = ImageTk.PhotoImage(image)
-		mapBreezeButton.config(image=image)
-		mapBreezeButton.image = image
-		mapBreezeButton.place(x=1100,y=100)
+		mapButton.config(image=image)
+		mapButton.image = image
+		mapButton.place(x=coordinates[0],y=coordinates[1])
+
+		return {mapName : mapButton}
+
 
 	def makeMapSelectionImage(self, location):
 		image = PIL.Image.open(location)
 		image = image.resize((300,200))
 		return image
 		
-	def mapSelectionButtonAction(self, mapId):
-		print(mapId)
+	def mapSelectionButtonAction(self, mapName):
+		self.mapName = mapName
+		self.resetRoot()
+		self.generateMapPlanPickerScreen()
+
 
 	def generateMapPlanPickerScreen(self):
 		self.tableTopText = tk.Text(self, height=1, width=10)
@@ -114,11 +125,14 @@ class Application(tk.Tk):
 		self.roundTypeCycleButton.config(height=3, width=25, bg="orange")
 		self.roundTypeCycleButton.place(x=1300, y=150)
 
+		self.backToMapSelectorButton = tk.Button(self, text="Back To Map Selector", command=self.backToMapSelector)
+		self.backToMapSelectorButton.config(height=3, width=25, bg="purple")
+		self.backToMapSelectorButton.place(x=50, y=150)
 
 		self.generateMapPlanButtons()
 
 	
-	def generateMapPlanButtons(self):
+	def generateMapPlanButtons(self): #maybe rewrite this to use a function seems like it works?
 		self.mapPlanButtons = []
 		plansLocations = self.getGoodPlans()
 
@@ -202,7 +216,7 @@ class Application(tk.Tk):
 
 	def getPossiblePlans(self):
 		roundType = self.roundPlanTypes[self.roundPlanType]
-		location = "./" + self.mapName + "/" + roundType + "/*"
+		location = "mapPlans/" + self.mapName + "/" + roundType + "/*"
 		files = glob.glob(location)
 		return files
 
@@ -218,7 +232,7 @@ class Application(tk.Tk):
 			return plans[:3]
 
 	def getDefaultPlans(self):
-		location = "./" + self.mapName + "/Default/*"
+		location = "mapPlans/" + self.mapName + "/Default/*"
 		files = glob.glob(location)
 		return files
 
@@ -239,6 +253,9 @@ class Application(tk.Tk):
 		self.chosenPlan.place(x=400, y=250)
 
 
+	def backToMapSelector(self):
+		self.resetRoot()
+		self.generateMapPickerScreen()
 		
 
 	def removeMapPlanButtons(self):
