@@ -216,7 +216,7 @@ class Application(tk.Tk):
 
 	def getPossiblePlans(self):
 		roundType = self.roundPlanTypes[self.roundPlanType]
-		location = "mapPlans/" + self.mapName + "/" + roundType + "/*"
+		location = "mapPlans/" + self.mapName + "/" + roundType + "/*.png"
 		files = glob.glob(location)
 		return files
 
@@ -247,10 +247,25 @@ class Application(tk.Tk):
 		image = PIL.Image.open(buttonElement["planLocation"])
 		image = image.crop((250,0,1070,773))
 		image = ImageTk.PhotoImage(image)
-		self.chosenPlan = tk.Label(self, image=image, text=buttonElement["text"], compound="bottom", font=("Helvetica", 18))
+		self.chosenPlan = tk.Label(self, image=image, text=buttonElement["text"], compound="bottom", font=("Helvetica", 32))
 		self.chosenPlan.image = image
 		self.chosenPlan.text = buttonElement["text"]
-		self.chosenPlan.place(x=400, y=250)
+		self.chosenPlan.place(x=600, y=250)
+
+		self.setupCommsLabel = tk.Label(self, text="Pre Round Comms:", compound="bottom", font=("Helvetica", 32))
+		self.setupCommsLabel.text = "Pre Round Comms:"
+		self.setupCommsLabel.place(x=75, y=250)
+
+		textLocation = buttonElement["planLocation"].replace("png", "txt")
+		setupCommsText = ""
+		with open(textLocation) as file:
+			setupCommsText = file.read()
+
+		self.chosenPlanSetupCommsText = tk.Text(self, height=20, width=25, font=("Helvetica", 24))
+		self.chosenPlanSetupCommsText.insert(tk.END, setupCommsText)
+		self.chosenPlanSetupCommsText.place(x=75, y=300)
+
+
 
 
 	def backToMapSelector(self):
@@ -346,6 +361,8 @@ class Application(tk.Tk):
 		self.removeMapPlanButtons()
 		try:
 			self.chosenPlan.destroy()
+			self.setupCommsLabel.destroy()
+			self.chosenPlanSetupCommsText.destroy()
 		except:
 			pass
 		self.generateMapPlanButtons()
