@@ -271,6 +271,14 @@ class Application(tk.Tk):
 	def backToMapSelector(self):
 		self.resetRoot()
 		self.generateMapPickerScreen()
+		self.round = 1
+		self.rounds = []
+		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
+		self.roundPlanType = 0
+		self.PISTOL = 0
+		self.ECO = 1
+		self.FULLBUY = 2
+		self.mapName = ""
 		
 
 	def removeMapPlanButtons(self):
