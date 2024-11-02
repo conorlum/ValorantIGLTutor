@@ -21,6 +21,8 @@ class Application(tk.Tk):
 		self.ECO = 1
 		self.FULLBUY = 2
 		self.mapName = ""
+		self.isDefense = False
+		self.isAttack = False
 
 		self.generateMapPickerScreen()
 		
@@ -79,6 +81,29 @@ class Application(tk.Tk):
 	def mapSelectionButtonAction(self, mapName):
 		self.mapName = mapName
 		self.resetRoot()
+		self.generateAttackDefensePickerScreen()
+
+	def generateAttackDefensePickerScreen(self):
+		self.attackButton = tk.Button(self, text="ATTACK", font=("Helvetica", 32), command=self.attackButtonAction)
+		self.attackButton.config(height=22, width=30, bg="#fa4d39")
+		self.attackButton.place(x=0, y=0)
+
+
+		self.defenseButton = tk.Button(self, text="DEFENSE", font=("Helvetica", 32), command=self.defenseButtonAction)
+		self.defenseButton.config(height=22, width=30, bg="#02f7b6")
+		self.defenseButton.place(x=750, y=0)
+
+
+	def attackButtonAction(self):
+		self.isAttack = True
+		self.isDefense = False
+		self.resetRoot()
+		self.generateMapPlanPickerScreen()
+
+	def defenseButtonAction(self):
+		self.isDefense = True
+		self.isAttack = False
+		self.resetRoot()
 		self.generateMapPlanPickerScreen()
 
 
@@ -109,11 +134,11 @@ class Application(tk.Tk):
 		self.roundPlanText.insert(tk.END, "Plan for Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType])
 		self.roundPlanText.place(x=500, y=150)
 
-		self.roundWinButton = tk.Button(self, text="Round Win", command=self.roundWinButtonAction)
+		self.roundWinButton = tk.Button(self, text="Round Win", command=lambda: self.endOfRoundOutcomeButtonAction("W"))
 		self.roundWinButton.config(height=3, width=25, bg="green")
 		self.roundWinButton.place(x=200, y=80)
 
-		self.roundLossButton = tk.Button(self, text="Round Loss", command=self.roundLossButtonAction)
+		self.roundLossButton = tk.Button(self, text="Round Loss", command=lambda: self.endOfRoundOutcomeButtonAction("L"))
 		self.roundLossButton.config(height=3, width=25, bg="red")
 		self.roundLossButton.place(x=1200, y=80)
 
@@ -211,12 +236,14 @@ class Application(tk.Tk):
 		textRightTop.place(x=1000, y=620)
 		self.mapPlanButtons.append({"imageButtonElement" : ButtonRightBottom, "planLocation" : plansLocations[2], "buttonId" : 5, "textElement" : textRightTop, "text" : plan})
 
-
-
-
 	def getPossiblePlans(self):
 		roundType = self.roundPlanTypes[self.roundPlanType]
-		location = "mapPlans/" + self.mapName + "/" + roundType + "/*.png"
+		location = "mapPlans/"
+		if self.isAttack:
+			location += "Attack/"
+		else:
+			location += "Defense/"
+		location += self.mapName + "/" + roundType + "/*.png"
 		files = glob.glob(location)
 		return files
 
@@ -227,12 +254,21 @@ class Application(tk.Tk):
 		if len(plans) == 2:
 			plans.append(plans[0])
 			return plans
+		if len(plans) == 1:
+			plans.append(plans[0])
+			plans.append(plans[0])
+			return plans
 		if len(plans) > 3:
 			#cool logic later?
 			return plans[:3]
 
 	def getDefaultPlans(self):
-		location = "mapPlans/" + self.mapName + "/Default/*"
+		location = "mapPlans/"
+		if self.isAttack:
+			location += "Attack/"
+		else:
+			location += "Defense/"
+		location += self.mapName + "/Default/*"
 		files = glob.glob(location)
 		return files
 
@@ -290,34 +326,37 @@ class Application(tk.Tk):
 	def changePlanButtonAction(self):
 		self.refreshMapPlanButtons()
  
-
 	def makeThumbnail(self, file_location):
 		image = PIL.Image.open(file_location)
 		image = image.crop((250,0,1070,773))
 		image = image.resize((350,350))
 		return image
 
+	def changeSides(self):
+		if self.isAttack:
+			self.isDefense = True
+			self.isAttack = False
+		else:
+			self.isAttack = True
+			self.isDefense = True
 
-	def roundWinButtonAction(self):
+	def endOfRoundOutcomeButtonAction(self, outcome):
+		background = "red"
+		if outcome == "W":
+			background = "green"
 		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
-		tableOutcomeText.config(bg="green")
+		tableOutcomeText.config(bg=background)
 		self.round += 1
-		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : "W"})
+		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : outcome})
+
+		if self.round == 13:
+			self.changeSides()
+
 		self.roundPlanTypeOutcomeLogic()
 		self.refreshRoundOnText()
 		self.refreshPlanText()
 		self.refreshMapPlanButtons()
 
-
-	def roundLossButtonAction(self):
-		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
-		tableOutcomeText.config(bg="red")
-		self.round += 1
-		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : "L"})
-		self.roundPlanTypeOutcomeLogic()
-		self.refreshRoundOnText()
-		self.refreshPlanText()
-		self.refreshMapPlanButtons()
 
 	def roundPlanTypeOutcomeLogic(self):
 		roundsIndex = self.round - 2
