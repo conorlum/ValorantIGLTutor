@@ -12,7 +12,12 @@ class Application(tk.Tk):
 		self.title("Valorant IGL Help")
 		self.geometry("1500x1100")
 		
+		self.setRootVariables()
+		
 
+		self.generateMapPickerScreen()
+		
+	def setRootVariables(self):
 		self.round = 1
 		self.rounds = []
 		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
@@ -23,9 +28,8 @@ class Application(tk.Tk):
 		self.mapName = ""
 		self.isDefense = False
 		self.isAttack = False
+		self.overTime = False
 
-		self.generateMapPickerScreen()
-		
 	def resetRoot(self):
 		for widget in self.winfo_children():
 			widget.destroy()
@@ -307,14 +311,7 @@ class Application(tk.Tk):
 	def backToMapSelector(self):
 		self.resetRoot()
 		self.generateMapPickerScreen()
-		self.round = 1
-		self.rounds = []
-		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
-		self.roundPlanType = 0
-		self.PISTOL = 0
-		self.ECO = 1
-		self.FULLBUY = 2
-		self.mapName = ""
+		self.setRootVariables()
 		
 
 	def removeMapPlanButtons(self):
@@ -352,6 +349,13 @@ class Application(tk.Tk):
 		if self.round == 13:
 			self.changeSides()
 
+		if self.overTime:
+			self.changeSides()
+
+		if self.round == 25:
+			self.generateAttackDefensePickerScreen()
+			self.overTime = True
+
 		self.roundPlanTypeOutcomeLogic()
 		self.refreshRoundOnText()
 		self.refreshPlanText()
@@ -359,6 +363,10 @@ class Application(tk.Tk):
 
 
 	def roundPlanTypeOutcomeLogic(self):
+		if self.overTime:
+			self.roundPlanType = self.FULLBUY
+			return
+
 		roundsIndex = self.round - 2
 		self.roundPlanType = self.ECO
 
