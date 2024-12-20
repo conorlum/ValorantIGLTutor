@@ -247,6 +247,8 @@ class Application(tk.Tk):
 			location += "Attack/"
 		else:
 			location += "Defense/"
+		if self.isDefense and roundType == self.roundPlanTypes[0]:
+			roundType = self.roundPlanTypes[2]
 		location += self.mapName + "/" + roundType + "/*.png"
 		files = glob.glob(location)
 		return files
@@ -272,7 +274,9 @@ class Application(tk.Tk):
 			location += "Attack/"
 		else:
 			location += "Defense/"
-		location += self.mapName + "/Default/*"
+		location += self.mapName + "/Default/*.png"
+		if self.isDefense:
+			location = location.replace("Default", "Full Buy")
 		files = glob.glob(location)
 		return files
 
@@ -285,6 +289,7 @@ class Application(tk.Tk):
 
 		buttonElement = self.mapPlanButtons[buttonId]
 		image = PIL.Image.open(buttonElement["planLocation"])
+		image = image.resize((1320,773))
 		image = image.crop((250,0,1070,773))
 		image = ImageTk.PhotoImage(image)
 		self.chosenPlan = tk.Label(self, image=image, text=buttonElement["text"], compound="bottom", font=("Helvetica", 32))
@@ -325,6 +330,7 @@ class Application(tk.Tk):
  
 	def makeThumbnail(self, file_location):
 		image = PIL.Image.open(file_location)
+		image = image.resize((1320,773))
 		image = image.crop((250,0,1070,773))
 		image = image.resize((350,350))
 		return image
@@ -355,6 +361,7 @@ class Application(tk.Tk):
 		if self.round == 25:
 			self.generateAttackDefensePickerScreen()
 			self.overTime = True
+			return
 
 		self.roundPlanTypeOutcomeLogic()
 		self.refreshRoundOnText()
@@ -376,21 +383,23 @@ class Application(tk.Tk):
 		if self.rounds[roundsIndex]["roundType"] == self.ECO:
 			self.roundPlanType = self.FULLBUY
 
+		roundModIndex = 12 if self.round > 12 else 0
+
 		if self.round % 12 == 1:
 			self.roundPlanType = self.PISTOL
 
 		if self.round % 12 == 2:
-			if self.rounds[0]["outcome"] == "W":
+			if self.rounds[roundModIndex]["outcome"] == "W":
 				self.roundPlanType = self.FULLBUY
 			else:
 				self.roundPlanType = self.ECO
 		if self.round % 12 == 3:
-			if self.rounds[0]["outcome"] == "W":
+			if self.rounds[roundModIndex]["outcome"] == "W":
 				self.roundPlanType = self.ECO
 			else:
 				self.roundPlanType = self.FULLBUY
 		if self.round % 12 == 4:
-			if self.rounds[0]["outcome"] == "W":
+			if self.rounds[roundModIndex]["outcome"] == "W":
 				self.roundPlanType = self.FULLBUY
 			elif self.rounds[roundsIndex]["outcome"] == "W":
 				self.roundPlanType = self.FULLBUY
