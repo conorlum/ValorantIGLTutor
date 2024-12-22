@@ -4,6 +4,7 @@ from tkinter import PhotoImage
 import PIL
 from PIL import Image, ImageTk
 import glob
+import json
 
 
 class Application(tk.Tk):
@@ -20,6 +21,8 @@ class Application(tk.Tk):
 	def setRootVariables(self):
 		self.round = 1
 		self.rounds = []
+		self.wins = 0
+		self.losses = 0
 		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
 		self.roundPlanType = 0
 		self.PISTOL = 0
@@ -29,6 +32,7 @@ class Application(tk.Tk):
 		self.isDefense = False
 		self.isAttack = False
 		self.overTime = False
+		self.debugMode = True
 
 	def resetRoot(self):
 		for widget in self.winfo_children():
@@ -38,6 +42,19 @@ class Application(tk.Tk):
 		self.tableTopText = tk.Text(self, height=1, width=11, font=("Helvetica", 32))
 		self.tableTopText.insert(tk.END, "Pick the map")
 		self.tableTopText.place(x=650, y=0)
+
+		if self.debugMode:
+			debugText = "ON"
+		else:
+			debugText = "OFF"
+
+		self.debugModeText = tk.Text(self, height=1, width=18, font=("Helvetica", 20))
+		self.debugModeText.insert(tk.END, f"DEBUG MODE: {debugText}")
+		self.debugModeText.place(x=1050, y=0)
+
+		self.debugToggleButton = tk.Button(self, text="Debug Toggle", command=self.toggleDebugMode)
+		self.debugToggleButton.config(height=3, width=25, bg="green")
+		self.debugToggleButton.place(x=1050, y=40)
 
 		mapNamesToCoordinates = {
 		"Abyss" : (50, 150), 
@@ -58,6 +75,22 @@ class Application(tk.Tk):
 		for key in mapNamesToCoordinates.keys():
 			response = self.generateMapButton(key, mapNamesToCoordinates[key])
 			mapNameToButton.update(response)
+
+	def toggleDebugMode(self):
+		if self.debugMode:
+			self.debugMode = False
+		else:
+			self.debugMode = True
+
+		self.debugModeText.destroy()
+		if self.debugMode:
+			debugText = "ON"
+		else:
+			debugText = "OFF"
+
+		self.debugModeText = tk.Text(self, height=1, width=18, font=("Helvetica", 20))
+		self.debugModeText.insert(tk.END, f"DEBUG MODE: {debugText}")
+		self.debugModeText.place(x=1050, y=0)
 
 
 	def generateMapButton(self, mapName, coordinates):
@@ -140,11 +173,11 @@ class Application(tk.Tk):
 
 		self.roundWinButton = tk.Button(self, text="Round Win", command=lambda: self.endOfRoundOutcomeButtonAction("W"))
 		self.roundWinButton.config(height=3, width=25, bg="green")
-		self.roundWinButton.place(x=200, y=80)
+		self.roundWinButton.place(x=100, y=80)
 
 		self.roundLossButton = tk.Button(self, text="Round Loss", command=lambda: self.endOfRoundOutcomeButtonAction("L"))
 		self.roundLossButton.config(height=3, width=25, bg="red")
-		self.roundLossButton.place(x=1200, y=80)
+		self.roundLossButton.place(x=1300, y=80)
 
 		self.roundTypeCycleButton = tk.Button(self, text="Plan Type Cycle", command=self.roundTypeCycleButtonAction)
 		self.roundTypeCycleButton.config(height=3, width=25, bg="yellow")
@@ -156,7 +189,15 @@ class Application(tk.Tk):
 
 		self.backToMapSelectorButton = tk.Button(self, text="Back To Map Selector", command=self.backToMapSelector)
 		self.backToMapSelectorButton.config(height=3, width=25, bg="purple")
-		self.backToMapSelectorButton.place(x=50, y=150)
+		self.backToMapSelectorButton.place(x=100, y=150)
+
+		self.noCallWinButton = tk.Button(self, text="No Call Win", command=lambda: self.endOfRoundOutcomeButtonAction("WN"))
+		self.noCallWinButton.config(height=3, width=25, bg="green")
+		self.noCallWinButton.place(x=300, y=80)
+
+		self.noCallLossButton = tk.Button(self, text="No Call Loss", command=lambda: self.endOfRoundOutcomeButtonAction("LN"))
+		self.noCallLossButton.config(height=3, width=25, bg="red")
+		self.noCallLossButton.place(x=1100, y=80)
 
 		self.generateMapPlanButtons()
 
@@ -343,30 +384,111 @@ class Application(tk.Tk):
 			self.isAttack = True
 			self.isDefense = True
 
+	def getRoundTypeText(self):
+		if self.roundPlanType == 0:
+			return "PISTOL"
+		elif self.roundPlanType == 1:
+			return "ECO"
+		else:
+			return "FULL BUY"
+
+	def getCorrectedRoundNumber(self):
+		if self.overTime:
+			return self.round
+		if self.round < 13:
+			return self.round
+		return self.round - 12
+
+	def checkWinLossCondition(self):
+		if self.overTime:
+			if abs(self.wins - self.losses) == 2:
+				if self.wins > self.losses:
+					self.displayWinScreen()
+					return True
+				else:
+					self.displayLossScreen()
+					return True
+		else:
+			if self.wins == 13:
+				self.displayWinScreen()
+				return True
+			elif self.losses == 13:
+				self.displayLossScreen()
+				return True
+
+		return False
+
+
+	def displayWinScreen(self):
+		image = PIL.Image.open("Victory.jpg")
+		image = image.resize((1400,280))
+		image = ImageTk.PhotoImage(image)
+		self.victoryImage = tk.Label(self, image=image)
+		self.victoryImage.image = image
+		self.victoryImage.place(x=50, y=250)
+
+	def displayLossScreen(self):
+		image = PIL.Image.open("Defeat.jpg")
+		image = image.resize((1400,280))
+		image = ImageTk.PhotoImage(image)
+		self.defeatImage = tk.Label(self, image=image)
+		self.defeatImage.image = image
+		self.defeatImage.place(x=50, y=250)
+
 	def endOfRoundOutcomeButtonAction(self, outcome):
 		background = "red"
-		if outcome == "W":
+		if "W" in outcome:
 			background = "green"
+			self.wins += 1
+		else:
+			self.losses += 1
 		tableOutcomeText = self.tableOutcomeTexts[self.round-1]
 		tableOutcomeText.config(bg=background)
-		self.round += 1
-		self.rounds.append({"roundType" : self.roundPlanType, "planText" : self.chosenPlan.text, "outcome" : outcome})
+		
+		cleanOutcome = outcome[0]
+		roundData = {"roundType" : self.getRoundTypeText(), "outcome" : cleanOutcome, "round" : self.getCorrectedRoundNumber()}
+		if "N" in outcome:
+			roundData["planText"] = "NO CALL"
+		else:
+			roundData["planText"] = self.chosenPlan.text
 
-		if self.round == 13:
-			self.changeSides()
+		self.recordRoundInfo(roundData)
 
-		if self.overTime:
-			self.changeSides()
+		roundData["roundType"] = self.roundPlanType
 
-		if self.round == 25:
-			self.generateAttackDefensePickerScreen()
-			self.overTime = True
-			return
+		self.rounds.append(roundData)
 
-		self.roundPlanTypeOutcomeLogic()
-		self.refreshRoundOnText()
-		self.refreshPlanText()
-		self.refreshMapPlanButtons()
+		gameOver = self.checkWinLossCondition()
+		if not gameOver:
+			self.round += 1
+			if self.round == 13:
+				self.changeSides()
+
+			if self.overTime:
+				self.changeSides()
+
+			if self.round == 25:
+				self.generateAttackDefensePickerScreen()
+				self.overTime = True
+				return
+
+			self.roundPlanTypeOutcomeLogic()
+			self.refreshRoundOnText()
+			self.refreshPlanText()
+			self.refreshMapPlanButtons()
+
+	def recordRoundInfo(self, roundData):
+		if not self.debugMode:
+			file = open("mapPlans/planData.json", "r")
+			recordedData = json.load(file)
+			file.close()
+
+			side = "Attack" if self.isAttack else "Defense"
+			recordedData[side][self.mapName].append(roundData)
+
+			file = open("mapPlans/planData.json", "w")
+			json.dump(recordedData, file, indent=4)
+			file.close()
 
 
 	def roundPlanTypeOutcomeLogic(self):
