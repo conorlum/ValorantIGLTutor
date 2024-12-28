@@ -1,0 +1,7 @@
+1 player spotting from market
+1 player fighting from stairs 
+1 player fighting from lane 
+2 players baiting from boathouse
+
+Front players fight on multiple entry
+Back players bait front and fight late
