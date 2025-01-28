@@ -1,0 +1,5 @@
+2 players northside
+3 players southside
+northside players fight for dish orb collection
+southside players hold space B lobby
+mid round call into B split or A split depending on engagement

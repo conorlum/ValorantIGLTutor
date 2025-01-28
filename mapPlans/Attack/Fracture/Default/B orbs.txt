@@ -1,0 +1,5 @@
+2 players northside
+3 players southside
+northside players smoke tower
+fight for arcade orb control
+southside players fight for stairs orb control

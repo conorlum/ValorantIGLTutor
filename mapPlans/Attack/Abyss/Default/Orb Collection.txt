@@ -1,0 +1,7 @@
+2 players fight for B orb
+1 player holds mid 
+2 players fight for A orb
+-
+Using util to fight for both orbs and space
+-
+mid round call after orb collection

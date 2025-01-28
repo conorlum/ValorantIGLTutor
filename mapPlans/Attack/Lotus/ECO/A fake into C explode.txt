@@ -1,0 +1,6 @@
+1 player A main to open tree door
+4 players C main 
+contact into mound and wait for door
+Explode C after door trigger
+smoke waterfall and halls
+recon site

@@ -1,0 +1,4 @@
+5 player C long walk
+Smoke bottom C long
+off contact push into spawn
+smoke spawn smoke when pushing to cut long fights
