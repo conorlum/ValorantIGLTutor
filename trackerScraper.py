@@ -1,23 +1,22 @@
+import pyautogui
 import time
-from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 
-# Set up Chrome options
-chrome_options = Options()
-chrome_options.add_argument("--start-maximized")  # Start with the browser maximized
 
-# Use WebDriverManager to get the path to the latest version of ChromeDriver
-driver_path = ChromeDriverManager().install()
+print("Starting the scraping")
+print("Open the match in a new window on the main screen")
+print("Move mouse onto first round")
+filenamePrefix = input("Please enter the map followed by date month year and time")
 
-# Create a Service object
-service = Service(driver_path)
+input()
 
-# Start the Chrome browser
-driver = webdriver.Chrome(service=service, options=chrome_options)
 
-# Open the desired website
-driver.get('https://tracker.gg/valorant/profile/riot/NPrightdolphin%23NA1/overview')  # Replace with your desired URL
+pyautogui.click()
+pyautogui.keyDown('ctrl')
+pyautogui.press('s')
+pyautogui.keyUp('ctrl')
 
-input("enter:")
+time.sleep(2)
+
+pyautogui.press('backspace')
+roundCount = 1
+pyautogui.write(filenamePrefix + f"-Round{roundCount}")
