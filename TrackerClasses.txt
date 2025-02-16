@@ -2,4 +2,4 @@ Overall round: cursor-pointer flex flex-col gap-3 items-center px-4 bg-white/10 
 team1 econ: bg-valorant-team-1 w-3
 team2 econ: bg-valorant-team-2 w-3
 
-per round log : cursor-pointer flex flex-row items-center space-between
+per round log : cursor-pointer flex flex-col gap-3 items-center px-4 bg-white/20 py-3

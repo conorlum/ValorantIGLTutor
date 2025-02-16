@@ -58,11 +58,11 @@ def saveHTMLToJson(filename):
 	roundHTMLJson = {}
 	for i in range(0, roundCountTotal + 1):
 		roundIndexStr = str(i+1)
-		file = open(f"C:\\Users\\Conor Lum\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndexStr}.html")
-		content = file.readlines()
-		html = content[145]
-
-		roundHTMLJson[i+1] = html
+		filePath = f"C:\\Users\\Conor Lum\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndexStr}.html"
+		with open(filePath, 'r') as file:
+			content = file.readlines()
+			html = content[145]
+			roundHTMLJson[str(i+1)] = html
 
 	filePath = f"C:\\Users\\Conor Lum\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
 	with open(filePath, 'w') as file:
@@ -91,6 +91,61 @@ def removeHTMLfiles(filename):
 		except Exception as e:
 			print(f"Error removing the directory: {e}")
 
+def loadHTMLSFromJson(filename):
+	htmls = {}
+	with open(f"C:\\Users\\Conor Lum\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json", 'r') as file:
+		htmls = json.load(file)
+
+	return htmls
+
+def parseEconPerRound(filename):
+	htmls = loadHTMLSFromJson(filename)
+
+	roundEcons = {}
+
+	for roundIndex in htmls.keys():
+		html = htmls[str(roundIndex)]
+		roundMarker = html.split("cursor-pointer flex flex-col gap-3 items-center px-4 bg-white/20 py-3")[1]
+
+		econTeam1Split = roundMarker.split('"bg-valorant-team-1 w-3\" style=\"height: ')[1]
+		team1EconString = econTeam1Split.split("px")[0]
+		team1EconAdjusted = round(float(team1EconString) * .625 * 1000)
+
+
+
+		econTeam2Split = roundMarker.split('"bg-valorant-team-2 w-3\" style=\"height: ')[1]
+		team2EconString = econTeam2Split.split("px")[0]
+		team2EconAdjusted = round(float(team2EconString) * .625 * 1000)
+
+		roundEcons[roundIndex] = {"Team1" : team1EconAdjusted, "Team2" : team2EconAdjusted}
+		
+
+	return roundEcons
+
+def parseRoundOutcome(filename):
+	htmls = loadHTMLSFromJson(filename)
+
+	roundOutcomes = {}
+
+	for roundIndex in htmls.keys():
+		html = htmls[str(roundIndex)]
+		roundMarker = html.split("cursor-pointer flex flex-col gap-3 items-center px-4 bg-white/20 py-3")[1]
+
+		roundOutcomeSplit = roundMarker.split('alt=')[1]
+		roundOutcomeString = roundOutcomeSplit.split('width')[0].replace('"', '').strip()
+		roundOutcomes[str(roundIndex)] = roundOutcomeString
+
+	return roundOutcomes
+
+
+def parseRoundKillList(filename):
+	htmls = loadHTMLSFromJson(filename)
+
+	# figure this out 
+
+
+	
+
 
 
 if __name__ == "__main__":
@@ -100,10 +155,12 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time\n")
 
-	saveAllRounds(filename)
-	saveHTMLToJson(filename)
-	removeHTMLfiles(filename)
+	# saveAllRounds(filename)
+	# saveHTMLToJson(filename)
+	# removeHTMLfiles(filename)
 
+	parseEconPerRound(filename)
+	parseRoundOutcome(filename)
 	
 
 	
