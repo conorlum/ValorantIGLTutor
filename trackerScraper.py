@@ -139,14 +139,66 @@ def parseRoundOutcome(filename):
 
 
 def parseRoundKillList(filename):
+	# need to consider sage clove and kayo res.  pheonix ult does not show up in the kill logs.  
+	# thinking that the "res" will show up as a second death or later kill for that specific image. 
+	# the res can go unknown if not shown in log, but in this case had little affect on the round.
 	htmls = loadHTMLSFromJson(filename)
 
 	# figure this out 
+	roundKillLogs = {}
+
+	for roundIndex in htmls.keys():
+		html = htmls[str(roundIndex)]
+
+		roundMarker = html.split("Event Log")[1]
+		logMarkers = roundMarker.split("cursor-pointer flex flex-row items-center")
+
+		logMarkers = logMarkers[1:]
+
+		killLog = []
+		for logMarker in logMarkers:
+			if "Planted" not in logMarker and "Exploded" not in logMarker and "Defused" not in logMarker:
 
 
-	
+				classMarkers = logMarker.split("class")
+				killerTeam = classMarkers[1].split("valorant-")[1][:6]
+				killerCharacter = classMarkers[2].split("displayicon")[1][1]
+				
+				try:
+					deathTeam = classMarkers[-3].split("valorant-")[1][:6]
+					deathCharacter = classMarkers[-2].split("displayicon")[1][1]
+				except Exception as e:
+					try:
+						deathTeam = classMarkers[8].split("valorant-")[1][:6]
+						deathCharacter = classMarkers[9].split("displayicon")[1][1]
+					except Exception as e:
+						try:
+							deathTeam = classMarkers[7].split("valorant-")[1][:6]
+							deathCharacter = classMarkers[8].split("displayicon")[1][1]
+						except Exception as e:
+							print(classMarkers)
+							print(e)
+				killerCharacter = 0 if killerCharacter == 'p' else killerCharacter
+				deathCharacter = 0 if deathCharacter == 'p' else deathCharacter
 
+				killLog.append({"killerTeam" : killerTeam, "killerCharacter" : killerCharacter, "deathTeam" : deathTeam, "deathCharacter" : deathCharacter})
+			else:
+				team = classMarkers[1].split("valorant-")[1][:6]
+				character = classMarkers[2].split("displayicon")[1][1]
+				character = 0 if character == 'p' else character
 
+			if "Planted" in logMarker:
+				killLog.append({"Team" : team, "Character" : character, "Planted" : True})
+
+			if "Exploded" in logMarker:
+				killLog.append({"Team" : team, "Character" : character, "Exploded" : True})
+
+			if "Defused" in logMarker:
+				killLog.append({"Team" : team, "Character" : character, "Defused" : True})
+
+		roundKillLogs[roundIndex] = killLog
+
+	return roundKillLogs
 
 if __name__ == "__main__":
 	print("Starting the scraping")
@@ -161,6 +213,7 @@ if __name__ == "__main__":
 
 	parseEconPerRound(filename)
 	parseRoundOutcome(filename)
+	parseRoundKillList(filename)
 	
 
 	
