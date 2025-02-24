@@ -11,7 +11,7 @@ class Application(tk.Tk):
 	def __init__(self):
 		super().__init__()
 		self.title("Valorant IGL Help")
-		self.geometry("1500x1100")
+		self.geometry("1550x1100")
 		
 		self.setRootVariables()
 		
@@ -25,6 +25,7 @@ class Application(tk.Tk):
 		self.losses = 0
 		self.roundPlanTypes = ["Pistol", "ECO", "Full Buy"]
 		self.roundPlanType = 0
+		self.enemyRoundPlanType = 0
 		self.PISTOL = 0
 		self.ECO = 1
 		self.FULLBUY = 2
@@ -57,17 +58,17 @@ class Application(tk.Tk):
 		self.debugToggleButton.place(x=1050, y=40)
 
 		mapNamesToCoordinates = {
-		"Abyss" : (50, 150), 
-		"Ascent" : (400, 150), 
-		"Bind" : (750, 150), 
-		"Breeze" : (1100, 150),
-		"Fracture" : (50, 450),
-		"Haven" : (400, 450),
-		"Icebox" : (750, 450),
-		"Lotus" : (1100, 450),
-		"Pearl" : (50, 750),
-		"Split" : (400, 750),
-		"Sunset" : (750, 750)
+		"Abyss" : (100, 150), 
+		"Ascent" : (450, 150), 
+		"Bind" : (800, 150), 
+		"Breeze" : (1150, 150),
+		"Fracture" : (100, 450),
+		"Haven" : (450, 450),
+		"Icebox" : (800, 450),
+		"Lotus" : (1150, 450),
+		"Pearl" : (100, 750),
+		"Split" : (450, 750),
+		"Sunset" : (800, 750)
 		}
 
 		mapNameToButton = {}
@@ -122,13 +123,13 @@ class Application(tk.Tk):
 
 	def generateAttackDefensePickerScreen(self):
 		self.attackButton = tk.Button(self, text="ATTACK", font=("Helvetica", 32), command=self.attackButtonAction)
-		self.attackButton.config(height=22, width=30, bg="#fa4d39")
+		self.attackButton.config(height=22, width=31, bg="#fa4d39")
 		self.attackButton.place(x=0, y=0)
 
 
 		self.defenseButton = tk.Button(self, text="DEFENSE", font=("Helvetica", 32), command=self.defenseButtonAction)
-		self.defenseButton.config(height=22, width=30, bg="#02f7b6")
-		self.defenseButton.place(x=750, y=0)
+		self.defenseButton.config(height=22, width=31, bg="#02f7b6")
+		self.defenseButton.place(x=775, y=0)
 
 
 	def attackButtonAction(self):
@@ -167,9 +168,9 @@ class Application(tk.Tk):
 		self.roundOnText.insert(tk.END, "OUTCOME OF ROUND: " + str(self.round))
 		self.roundOnText.place(x=500, y=80)
 
-		self.roundPlanText = tk.Text(self, height=1, width=23, font=("Helvetica", 32))
-		self.roundPlanText.insert(tk.END, "Plan for Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType])
-		self.roundPlanText.place(x=500, y=150)
+		self.roundPlanText = tk.Text(self, height=1, width=25, font=("Helvetica", 32))
+		self.roundPlanText.insert(tk.END, "Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType] + " VS " + self.roundPlanTypes[self.enemyRoundPlanType])
+		self.roundPlanText.place(x=475, y=150)
 
 		self.roundWinButton = tk.Button(self, text="Round Win", command=lambda: self.endOfRoundOutcomeButtonAction("W"))
 		self.roundWinButton.config(height=3, width=25, bg="green")
@@ -180,12 +181,16 @@ class Application(tk.Tk):
 		self.roundLossButton.place(x=1300, y=80)
 
 		self.roundTypeCycleButton = tk.Button(self, text="Plan Type Cycle", command=self.roundTypeCycleButtonAction)
-		self.roundTypeCycleButton.config(height=3, width=25, bg="yellow")
+		self.roundTypeCycleButton.config(height=3, width=25, bg="green yellow")
 		self.roundTypeCycleButton.place(x=1100, y=150)
 
-		self.roundTypeCycleButton = tk.Button(self, text="Change Plan", command=self.changePlanButtonAction)
-		self.roundTypeCycleButton.config(height=3, width=25, bg="orange")
+		self.roundTypeCycleButton = tk.Button(self, text="Enemy Type Cycle", command=self.enemyRoundTypeCycleButtonAction)
+		self.roundTypeCycleButton.config(height=3, width=25, bg="tomato")
 		self.roundTypeCycleButton.place(x=1300, y=150)
+
+		self.roundTypeCycleButton = tk.Button(self, text="Change Plan", command=self.changePlanButtonAction)
+		self.roundTypeCycleButton.config(height=3, width=22, bg="orange")
+		self.roundTypeCycleButton.place(x=300, y=150)
 
 		self.backToMapSelectorButton = tk.Button(self, text="Back To Map Selector", command=self.backToMapSelector)
 		self.backToMapSelectorButton.config(height=3, width=25, bg="purple")
@@ -494,10 +499,16 @@ class Application(tk.Tk):
 	def roundPlanTypeOutcomeLogic(self):
 		if self.overTime:
 			self.roundPlanType = self.FULLBUY
+			self.enemyRoundPlanType = self.FULLBUY
 			return
 
 		roundsIndex = self.round - 2
 		self.roundPlanType = self.ECO
+
+		if self.rounds[roundsIndex]["outcome"] == "L":
+			self.enemyRoundPlanType = self.FULLBUY
+		else:
+			self.enemyRoundPlanType = self.ECO
 
 		if self.rounds[roundsIndex]["roundType"] == self.FULLBUY and self.rounds[roundsIndex]["outcome"] == "W":
 			self.roundPlanType = self.FULLBUY
@@ -509,28 +520,37 @@ class Application(tk.Tk):
 
 		if self.round % 12 == 1:
 			self.roundPlanType = self.PISTOL
+			self.enemyRoundPlanType = self.PISTOL
 
 		if self.round % 12 == 2:
 			if self.rounds[roundModIndex]["outcome"] == "W":
 				self.roundPlanType = self.FULLBUY
+				self.enemyRoundPlanType = self.ECO
 			else:
 				self.roundPlanType = self.ECO
+				self.enemyRoundPlanType = self.FULLBUY
 		if self.round % 12 == 3:
 			if self.rounds[roundModIndex]["outcome"] == "W":
 				self.roundPlanType = self.ECO
+				self.enemyRoundPlanType = self.FULLBUY
 			else:
 				self.roundPlanType = self.FULLBUY
+				self.enemyRoundPlanType = self.ECO
 		if self.round % 12 == 4:
-			if self.rounds[roundModIndex]["outcome"] == "W":
+			if self.wins == 3:
 				self.roundPlanType = self.FULLBUY
+				self.enemyRoundPlanType = self.ECO
+			elif self.rounds[roundModIndex]["outcome"] == "W":
+				self.roundPlanType = self.FULLBUY
+				self.enemyRoundPlanType = self.FULLBUY
 			elif self.rounds[roundsIndex]["outcome"] == "W":
 				self.roundPlanType = self.FULLBUY
+				self.enemyRoundPlanType = self.FULLBUY	
 			else:
 				self.roundPlanType = self.ECO
+				self.enemyRoundPlanType = self.FULLBUY
 
 		
-
-
 	def roundTypeCycleButtonAction(self):
 		
 		if self.roundPlanType == self.ECO:
@@ -540,6 +560,18 @@ class Application(tk.Tk):
 
 		if self.round % 12 == 1:
 			self.roundPlanType = self.PISTOL
+		self.refreshPlanText()
+		self.refreshMapPlanButtons()
+
+	def enemyRoundTypeCycleButtonAction(self):
+		
+		if self.enemyRoundPlanType == self.ECO:
+			self.enemyRoundPlanType = self.FULLBUY
+		else:
+			self.enemyRoundPlanType = self.ECO
+
+		if self.round % 12 == 1:
+			self.enemyRoundPlanType = self.PISTOL
 		self.refreshPlanText()
 		self.refreshMapPlanButtons()
 
@@ -559,7 +591,7 @@ class Application(tk.Tk):
 
 	def refreshPlanText(self):
 		self.roundPlanText.delete('1.0', tk.END)
-		self.roundPlanText.insert(tk.END, "Plan for Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType])
+		self.roundPlanText.insert(tk.END, "Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType] + " VS " + self.roundPlanTypes[self.enemyRoundPlanType])
 
 
 
