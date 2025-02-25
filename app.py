@@ -5,13 +5,16 @@ import PIL
 from PIL import Image, ImageTk
 import glob
 import json
+import keyboard
 
 
 class Application(tk.Tk):
 	def __init__(self):
 		super().__init__()
 		self.title("Valorant IGL Help")
-		self.geometry("1550x1100")
+		self.geometry("1550x1080")
+
+		keyboard.on_press(self.keyHandler)
 		
 		self.setRootVariables()
 		
@@ -38,6 +41,39 @@ class Application(tk.Tk):
 	def resetRoot(self):
 		for widget in self.winfo_children():
 			widget.destroy()
+
+	def keyHandler(self, event):
+		char = event.name
+		print(char)
+		match char:
+			case "7":
+				self.endOfRoundOutcomeButtonAction("W")
+			case "8":
+				self.endOfRoundOutcomeButtonAction("WN")
+			case "9":
+				self.endOfRoundOutcomeButtonAction("LN")
+			case "+":
+				self.endOfRoundOutcomeButtonAction("L")
+			case "4":
+				self.changePlanButtonAction()
+			case "5":
+				self.roundTypeCycleButtonAction()
+			case "6":
+				self.enemyRoundTypeCycleButtonAction()
+			case "1":
+				self.mapPlanButtonAction(0)
+			case "2":
+				self.mapPlanButtonAction(1)
+			case "3":
+				self.mapPlanButtonAction(2)
+			case "left":
+				self.mapPlanButtonAction(3)
+			case "down":
+				self.mapPlanButtonAction(4)
+			case "right":
+				self.mapPlanButtonAction(5)
+			case _:
+				pass
 
 	def generateMapPickerScreen(self):
 		self.tableTopText = tk.Text(self, height=1, width=11, font=("Helvetica", 32))
@@ -162,8 +198,6 @@ class Application(tk.Tk):
 			self.tableOutcomeText.place(x=20+45*i, y=50)
 			self.tableOutcomeTexts.append(self.tableOutcomeText)
 
-		#can add plan type underneath maybe?  chosenText is given and possible to use
-
 		self.roundOnText = tk.Text(self, height=1, width=23, font=("Helvetica", 32))
 		self.roundOnText.insert(tk.END, "OUTCOME OF ROUND: " + str(self.round))
 		self.roundOnText.place(x=500, y=80)
@@ -172,23 +206,23 @@ class Application(tk.Tk):
 		self.roundPlanText.insert(tk.END, "Round: " + str(self.round) + "  " + self.roundPlanTypes[self.roundPlanType] + " VS " + self.roundPlanTypes[self.enemyRoundPlanType])
 		self.roundPlanText.place(x=475, y=150)
 
-		self.roundWinButton = tk.Button(self, text="Round Win", command=lambda: self.endOfRoundOutcomeButtonAction("W"))
+		self.roundWinButton = tk.Button(self, text="Round Win (7)", command=lambda: self.endOfRoundOutcomeButtonAction("W"))
 		self.roundWinButton.config(height=3, width=25, bg="green")
 		self.roundWinButton.place(x=100, y=80)
 
-		self.roundLossButton = tk.Button(self, text="Round Loss", command=lambda: self.endOfRoundOutcomeButtonAction("L"))
+		self.roundLossButton = tk.Button(self, text="Round Loss (+)", command=lambda: self.endOfRoundOutcomeButtonAction("L"))
 		self.roundLossButton.config(height=3, width=25, bg="red")
 		self.roundLossButton.place(x=1300, y=80)
 
-		self.roundTypeCycleButton = tk.Button(self, text="Plan Type Cycle", command=self.roundTypeCycleButtonAction)
+		self.roundTypeCycleButton = tk.Button(self, text="Plan Type Cycle (5)", command=self.roundTypeCycleButtonAction)
 		self.roundTypeCycleButton.config(height=3, width=25, bg="green yellow")
 		self.roundTypeCycleButton.place(x=1100, y=150)
 
-		self.roundTypeCycleButton = tk.Button(self, text="Enemy Type Cycle", command=self.enemyRoundTypeCycleButtonAction)
+		self.roundTypeCycleButton = tk.Button(self, text="Enemy Type Cycle (6)", command=self.enemyRoundTypeCycleButtonAction)
 		self.roundTypeCycleButton.config(height=3, width=25, bg="tomato")
 		self.roundTypeCycleButton.place(x=1300, y=150)
 
-		self.roundTypeCycleButton = tk.Button(self, text="Change Plan", command=self.changePlanButtonAction)
+		self.roundTypeCycleButton = tk.Button(self, text="Change Plan (4)", command=self.changePlanButtonAction)
 		self.roundTypeCycleButton.config(height=3, width=22, bg="orange")
 		self.roundTypeCycleButton.place(x=300, y=150)
 
@@ -196,16 +230,15 @@ class Application(tk.Tk):
 		self.backToMapSelectorButton.config(height=3, width=25, bg="purple")
 		self.backToMapSelectorButton.place(x=100, y=150)
 
-		self.noCallWinButton = tk.Button(self, text="No Call Win", command=lambda: self.endOfRoundOutcomeButtonAction("WN"))
+		self.noCallWinButton = tk.Button(self, text="No Call Win (8)", command=lambda: self.endOfRoundOutcomeButtonAction("WN"))
 		self.noCallWinButton.config(height=3, width=25, bg="green")
 		self.noCallWinButton.place(x=300, y=80)
 
-		self.noCallLossButton = tk.Button(self, text="No Call Loss", command=lambda: self.endOfRoundOutcomeButtonAction("LN"))
+		self.noCallLossButton = tk.Button(self, text="No Call Loss (9)", command=lambda: self.endOfRoundOutcomeButtonAction("LN"))
 		self.noCallLossButton.config(height=3, width=25, bg="red")
 		self.noCallLossButton.place(x=1100, y=80)
 
 		self.generateMapPlanButtons()
-
 	
 	def generateMapPlanButtons(self): #maybe rewrite this to use a function seems like it works?
 		self.mapPlanButtons = []
