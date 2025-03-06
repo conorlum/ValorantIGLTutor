@@ -37,12 +37,16 @@ class Application(tk.Tk):
 		self.isAttack = False
 		self.overTime = False
 		self.debugMode = True
+		self.matchComplete = False
+		self.matchName = tk.StringVar()
 
 	def resetRoot(self):
 		for widget in self.winfo_children():
 			widget.destroy()
 
 	def keyHandler(self, event):
+		if self.matchComplete:
+			return
 		char = event.name
 		print(char)
 		match char:
@@ -430,48 +434,45 @@ class Application(tk.Tk):
 		else:
 			return "FULL BUY"
 
-	def getCorrectedRoundNumber(self):
-		if self.overTime:
-			return self.round
-		if self.round < 13:
-			return self.round
-		return self.round - 12
-
 	def checkWinLossCondition(self):
 		if self.overTime:
 			if abs(self.wins - self.losses) == 2:
 				if self.wins > self.losses:
-					self.displayWinScreen()
+					self.displayEndScreen("Victory.jpg")
 					return True
 				else:
-					self.displayLossScreen()
+					self.displayEndScreen("Defeat.jpg")
 					return True
 		else:
 			if self.wins == 13:
-				self.displayWinScreen()
+				self.displayEndScreen("Victory.jpg")
 				return True
 			elif self.losses == 13:
-				self.displayLossScreen()
+				self.displayEndScreen("Defeat.jpg")
 				return True
 
 		return False
 
 
-	def displayWinScreen(self):
-		image = PIL.Image.open("Victory.jpg")
-		image = image.resize((1400,280))
+	def displayEndScreen(self, imageScreenName):
+		self.matchComplete = True
+		image = PIL.Image.open(imageScreenName)
+		image = image.resize((1450,980))
 		image = ImageTk.PhotoImage(image)
-		self.victoryImage = tk.Label(self, image=image)
-		self.victoryImage.image = image
-		self.victoryImage.place(x=50, y=250)
+		self.endImage = tk.Label(self, image=image)
+		self.endImage.image = image
+		self.endImage.place(x=50, y=75)
 
-	def displayLossScreen(self):
-		image = PIL.Image.open("Defeat.jpg")
-		image = image.resize((1400,280))
-		image = ImageTk.PhotoImage(image)
-		self.defeatImage = tk.Label(self, image=image)
-		self.defeatImage.image = image
-		self.defeatImage.place(x=50, y=250)
+		self.matchNameEntry = tk.Entry(self, width=20, font=("Helvetica", 24),  textvariable = self.matchName)
+		self.matchNameEntry.place(x=650, y=900)
+		
+		self.submitMatchNameButton = tk.Button(self, text="Submit Match Name", command=self.submitMatchNameButtonAction)
+		self.submitMatchNameButton.place(x=700, y=950)
+		
+
+	def submitMatchNameButtonAction(self):
+		self.recordMatchInfo()
+		self.backToMapSelector()
 
 	def endOfRoundOutcomeButtonAction(self, outcome):
 		background = "red"
@@ -484,15 +485,15 @@ class Application(tk.Tk):
 		tableOutcomeText.config(bg=background)
 		
 		cleanOutcome = outcome[0]
-		roundData = {"roundType" : self.getRoundTypeText(), "outcome" : cleanOutcome, "round" : self.getCorrectedRoundNumber()}
+		roundData = {"roundType" : self.getRoundTypeText(), "outcome" : cleanOutcome, "round" : self.round}
 		if "N" in outcome:
 			roundData["planText"] = "NO CALL"
 		else:
 			roundData["planText"] = self.chosenPlan.text
 
-		self.recordRoundInfo(roundData)
-
 		roundData["roundType"] = self.roundPlanType
+		roundData["enemyRoundType"] = self.enemyRoundPlanType
+		roundData["side"] = "Attack" if self.isAttack else "Defense"
 
 		self.rounds.append(roundData)
 
@@ -515,14 +516,14 @@ class Application(tk.Tk):
 			self.refreshPlanText()
 			self.refreshMapPlanButtons()
 
-	def recordRoundInfo(self, roundData):
+	def recordMatchInfo(self):
 		if not self.debugMode:
 			file = open("mapPlans/planData.json", "r")
 			recordedData = json.load(file)
 			file.close()
 
-			side = "Attack" if self.isAttack else "Defense"
-			recordedData[side][self.mapName].append(roundData)
+			matchInfo = {self.matchName.get() : self.rounds}
+			recordedData[self.mapName].append(matchInfo)
 
 			file = open("mapPlans/planData.json", "w")
 			json.dump(recordedData, file, indent=4)
