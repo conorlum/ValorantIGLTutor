@@ -190,6 +190,9 @@ def weaponNewImageLookup(newImageNumber, roundIndex, filename):
 	return best_png.split("weaponNewImagePictureReferences\\")[1].split(".png")[0]
 
 
+def convertTime(stringTime):
+	return int(stringTime[0])*60 + int(stringTime[2:])
+
 def parseRoundKillList(filename):
 	# need to consider sage clove and kayo res.  pheonix ult does not show up in the kill logs.  
 	# thinking that the "res" will show up as a second death or later kill for that specific image. 
@@ -208,7 +211,15 @@ def parseRoundKillList(filename):
 		logMarkers = logMarkers[1:]
 
 		killLog = []
+
+		team1ACSBonus = 150
+		team2ACSBonus = 150
+
 		for logMarker in logMarkers:
+
+			eventTime = convertTime(logMarker.split("text-16 font-medium leading-3/4\">")[1].split("<")[0])
+
+
 			if "Planted" not in logMarker and "Exploded" not in logMarker and "Defused" not in logMarker:
 
 
@@ -245,8 +256,15 @@ def parseRoundKillList(filename):
 					killWeapon = logMarker.split("newimage")[1].split(".png")[0]
 					killWeapon = weaponNewImageLookup(killWeapon, roundIndex, filename)
 
+				
 
-				killLog.append({"killerTeam" : killerTeam, "killerCharacter" : killerCharacter, "deathTeam" : deathTeam, "deathCharacter" : deathCharacter, "killWeapon" : killWeapon})
+				ACSBonus = team1ACSBonus if killerTeam == "tean-1" else team2ACSBonus
+				killLog.append({"killerTeam" : killerTeam, "killerCharacter" : killerCharacter, "deathTeam" : deathTeam, "deathCharacter" : deathCharacter, "killWeapon" : killWeapon, "eventTime" : eventTime, "Event" : "Kill", "ACS_Bonus" : ACSBonus})
+
+				if killerTeam == "team-1":
+					team1ACSBonus -= 20
+				else:
+					team2ACSBonus -= 20
 			else:
 				team = classMarkers[1].split("valorant-")[1][:6]
 				character = classMarkers[2].split("displayicon")[1][1]
@@ -254,13 +272,13 @@ def parseRoundKillList(filename):
 				character = agentDisplayIconLookup(character, roundIndex, filename)
 
 			if "Planted" in logMarker:
-				killLog.append({"Team" : team, "Character" : character, "Planted" : True})
+				killLog.append({"Team" : team, "Character" : character, "Event" : "Planted", "eventTime" : eventTime})
 
 			if "Exploded" in logMarker:
-				killLog.append({"Team" : team, "Character" : character, "Exploded" : True})
+				killLog.append({"Team" : team, "Character" : character, "Event" : "Exploded", "eventTime" : eventTime})
 
 			if "Defused" in logMarker:
-				killLog.append({"Team" : team, "Character" : character, "Defused" : True})
+				killLog.append({"Team" : team, "Character" : character, "Event" : "Defused", "eventTime" : eventTime})
 
 		roundKillLogs[roundIndex] = killLog
 
@@ -272,6 +290,9 @@ def parseTeamPlayers(filename):
 	round1 = htmls["1"]
 	usernames = round1.split("trn-ign__username fit-long-username")
 	playerUsernamesToAgent = {}
+
+	teamCount = 0
+	team = "team-1"
 	for usernameIndex in range(0,len(usernames)-1):
 		username = usernames[usernameIndex+1]
 		playerAgent = usernames[usernameIndex]
@@ -283,7 +304,11 @@ def parseTeamPlayers(filename):
 			agent = playerAgent.split("alt=")[-1][1:].split("\"")[0]
 		else:
 			agent = playerAgent.split("alt=")[1][1:].split("\"")[0]
-		playerUsernamesToAgent[(username[2:].split("<")[0])] = {"Agent" : agent}
+		playerUsernamesToAgent[(username[2:].split("<")[0])] = {"Agent" : agent, "Team" : team, "RoundInfo" : []}
+
+		teamCount += 1
+		if teamCount == 5:
+			team = "team-2"
 
 	return playerUsernamesToAgent
 	
@@ -297,21 +322,199 @@ def parsePlayerRoundInfo(filename):
 		html = htmls[str(roundIndex)]
 		players = html.split("trn-ign__username fit-long-username")
 
+		
 		for player in players:
-			username = (player[2:].split("<")[0])
-			score = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[1].split("<")[0])
-			kills = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[2].split("<")[0])
-			deaths = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[3].split("<")[0])
-			assists = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[4].split("<")[0])
+			if "st__item st-content__item-value st-content__item-value--active st__item--align-center" in player:
+				username = (player[2:].split("<")[0])
+				commaScore = player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[1].split("<")[0]
+				score = int(commaScore.replace(",", ""))
+				kills = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[2].split("<")[0])
+				deaths = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[3].split("<")[0])
+				assists = int(player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[4].split("<")[0])
+				commaLoadout= player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[5].split("<")[0]
+				commaRemaining = player.split("st__item st-content__item-value st-content__item-value--active st__item--align-center")[1].split("value\">")[5].split("label\">")[1].split("<")[0]
+				loadout = int(commaLoadout.replace(",", ""))
+				remaining = int(commaRemaining.replace(",", ""))
 
-			playerData = playerUsernamesToAgent[username]
-			roundPlayerData = {}
-			playerData["score"] = score
-			playerData["kills"] = kills
-			playerData["deaths"] = deaths
-			playerData["assists"] = assists
+				roundPlayerData = {}
+				roundPlayerData["Score"] = score
+				roundPlayerData["Kills"] = kills
+				roundPlayerData["Deaths"] = deaths
+				roundPlayerData["Assists"] = assists
+				roundPlayerData["Loadout"] = loadout
+				roundPlayerData["Remaining"] = remaining
+				playerUsernamesToAgent[username]["RoundInfo"].append(roundPlayerData)
+				
+				
 
 
+	return playerUsernamesToAgent
+
+
+def measureImpact(filename):
+
+	htmls = loadHTMLSFromJson(filename)
+
+	playersRoundInfo = parsePlayerRoundInfo(filename)
+	# print(playersRoundInfo)
+
+	roundKillLogs = parseRoundKillList(filename)
+	roundKillLogs = calculateEconDifferential(playersRoundInfo, roundKillLogs)
+	roundKillLogs = calculateKillOrderBonus(roundKillLogs)
+	
+
+	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
+
+	playersRoundInfo = calculateRoundImpact(playersRoundInfo, roundKillLogs)
+
+	displayImpact(playersRoundInfo)
+
+def displayImpact(playersRoundInfo):
+	for username in playersRoundInfo.keys():
+		player = playersRoundInfo[username]
+		agent = player["Agent"]
+		team = player["Team"]
+
+		print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		print(username)
+		print(agent)
+		print(team)
+		print("\n\n")
+
+
+		avgImpact = 0
+		avgACS = 0
+		for roundIndex in range(0,len(player["RoundInfo"])):
+			print("Round " + str(roundIndex+1))
+			print("Impact: " + str(player["RoundInfo"][roundIndex]["Impact"]))
+			print("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
+			print("\n")
+			avgImpact += player["RoundInfo"][roundIndex]["Impact"]
+			avgACS += player["RoundInfo"][roundIndex]["Score"]
+
+		print("Average Impact: " + str(round(avgImpact/len(player["RoundInfo"]))))
+		print("Average ACS: " + str(round(avgACS/len(player["RoundInfo"]))))
+		print("\n\n")
+
+
+def calculateRoundImpact(playersRoundInfo, roundKillLogs):
+
+
+	for username in playersRoundInfo.keys():
+		player = playersRoundInfo[username]
+		agent = player["Agent"]
+		team = player["Team"]
+
+		for roundIndex in range(0,len(player["RoundInfo"])):
+			ACS = player["RoundInfo"][roundIndex]["Damage+Assists"]
+			killOrderBonus = player["RoundInfo"][roundIndex]["killOrderBonusSum"]
+			killOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"]
+			killFactorAverage = player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"]
+			ACS_Scalor = 1.25
+			player["RoundInfo"][roundIndex]["Impact"] = round(ACS*killFactorAverage*ACS_Scalor + killOrderBonusXEconFactorSum)
+
+	return playersRoundInfo
+
+
+
+
+
+def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs):
+
+	for username in playersRoundInfo.keys():
+		player = playersRoundInfo[username]
+		agent = player["Agent"]
+		team = player["Team"]
+
+		for roundIndex in range(0,len(player["RoundInfo"])):
+			ACS = player["RoundInfo"][roundIndex]["Score"]
+			killOrderBonus = 0
+			killFactorAverage = 1
+			killOrderBonusXEconFactorSum = 0
+
+			for killLog in roundKillLogs[str(roundIndex+1)]:
+				if killLog["Event"] == "Kill":
+					if killLog["killerTeam"] == team and killLog["killerCharacter"] == agent:
+						ACS -= killLog["ACS_Bonus"]
+						killOrderBonus += killLog["killOrderBonus"]
+						killFactorAverage *= killLog["EconomyDifferentialFactor"]
+						killOrderBonusXEconFactorSum += killLog["killOrderBonus*EconFactor"]
+
+			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS
+			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
+			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
+			player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"] = killFactorAverage
+
+
+	return playersRoundInfo
+
+def calculateKillOrderBonus(roundKillLogs):
+	killOrderBonuses = [[],[],[],[],[],[]]
+	killOrderBonuses[0] = [0,0,0,0,0,0]
+	killOrderBonuses[1] = [0,300,200,110,70,50]
+	killOrderBonuses[2] = [0,200,262,180,100,70]
+	killOrderBonuses[3] = [0,110,180,225,150,110]
+	killOrderBonuses[4] = [0,70,100,150,187,130]
+	killOrderBonuses[5] = [0,50,70,110,130,150]
+
+	for roundIndex in roundKillLogs.keys():
+
+
+		team1KillIndex = 5
+		team2KillIndex = 5		
+		for killLog in roundKillLogs[roundIndex]:
+			if killLog["Event"] == "Kill":
+				killLog["killOrderBonus"] = killOrderBonuses[team1KillIndex][team2KillIndex]
+				killLog["killOrderBonus*EconFactor"] = killOrderBonuses[team1KillIndex][team2KillIndex] * killLog["EconomyDifferentialFactor"]
+
+				if killLog["killerTeam"] == "team-1":
+					team1KillIndex -= 1
+				else:
+					team2KillIndex -= 1
+
+	return roundKillLogs
+
+def reverseAgentTeamToPlayerUsername(playersRoundInfo):
+
+	agentTeamToPlayer = {}
+	for username in playersRoundInfo.keys():
+		player = playersRoundInfo[username]
+		agent = player["Agent"]
+		team = player["Team"]
+
+		key = team+agent
+		agentTeamToPlayer[key] = username
+
+	return agentTeamToPlayer
+
+def categorizeEcon(EconOfLoadout):
+	if EconOfLoadout < 1000:
+		return 8 #SAVE
+	elif EconOfLoadout < 3300:
+		return 6 #ECON
+	else:
+		return 4 #FAIR	
+
+def calculateEconDifferential(playersRoundInfo, roundKillLogs):
+
+	agentTeamToPlayer = reverseAgentTeamToPlayerUsername(playersRoundInfo)
+
+	for roundIndex in roundKillLogs.keys():
+
+			
+		for killLog in roundKillLogs[roundIndex]:
+			if killLog["Event"] == "Kill":
+				killerKey = killLog["killerTeam"]+killLog["killerCharacter"]
+				killerUsername = agentTeamToPlayer[killerKey]
+				killerEcon = playersRoundInfo[killerUsername]["RoundInfo"][int(roundIndex)-1]["Loadout"]
+
+				deathKey = killLog["deathTeam"]+killLog["deathCharacter"]
+				deathUsername = agentTeamToPlayer[deathKey]
+				deathEcon = playersRoundInfo[deathUsername]["RoundInfo"][int(roundIndex)-1]["Loadout"]
+
+				killLog["EconomyDifferentialFactor"] = categorizeEcon(killerEcon)/categorizeEcon(deathEcon)
+
+	return roundKillLogs
 
 
 if __name__ == "__main__":
@@ -330,7 +533,10 @@ if __name__ == "__main__":
 	# print(parseRoundKillList(filename)["2"])
 	# print(parseRoundKillList(filename)["23"])
 
-	parseTeamPlayers(filename)
+	# parseTeamPlayers(filename)
+	# print(parsePlayerRoundInfo(filename))
+
+	measureImpact(filename)
 	
 
 	
