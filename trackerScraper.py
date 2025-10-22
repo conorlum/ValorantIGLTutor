@@ -21,30 +21,49 @@ def clickAndSaveRound(roundCount, filenamePrefix):
 	time.sleep(2)
 
 	pyautogui.press('backspace')
-	pyautogui.write(filenamePrefix + f"-Round{roundCount}")
+	time.sleep(3)
+	filename = filenamePrefix + f"-Round{roundCount}"
+	pyautogui.write(filename)
+	time.sleep(3)
 	pyautogui.press('enter')
-	time.sleep(10)
+	time.sleep(5)
+
+	while checkFileExists(filename) is False:
+		time.sleep(10)
+
+def checkFileExists(filename):
+	pattern = os.path.join("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\", f"*{filename}*")
+	return bool(glob.glob(pattern))
+
 
 def moveOneRoundOver():
 	pyautogui.moveRel(96,0)
 
 def parseOutRoundCount(filename):
-	file = open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html")
-	content = file.readlines()
-	html = content[165]
+	nextLine = False
+	with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html", "r", encoding="utf-8") as file:
+		for line in file:
+
+			if nextLine:
+				html = line
+				nextLine = False
+				break
+			if "<body>" in line:
+				nextLine = True
+
+
 	return html.count("text-12 font-medium text-dim")
 
 def saveAllRounds(filename):
 	roundCountTotal = parseOutRoundCount(filename)
-	print(roundCountTotal)
 	TotalRoundIndex = 1
 	while roundCountTotal > 0:
-		if roundCountTotal > 20:
+		if roundCountTotal >= 20:
 			roundIndexTotal = 20
+			roundCountTotal -= 20
 		else:
-			roundIndexTotal = roundCountTotal + 1
-
-		roundCountTotal -= roundIndexTotal + 1
+			roundIndexTotal = roundCountTotal
+			roundCountTotal = 0
 
 		print("Move mouse onto start loop round")
 		input()
@@ -58,6 +77,7 @@ def saveAllRounds(filename):
 
 def saveHTMLToJson(filename):
 	roundCountTotal = parseOutRoundCount(filename)
+	print(roundCountTotal)
 	roundHTMLJson = {}
 	for i in range(0, roundCountTotal):
 		roundIndexStr = str(i+1)
@@ -524,8 +544,8 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time\n")
 
-	# saveAllRounds(filename)
-	# saveHTMLToJson(filename)
+	saveAllRounds(filename)
+	saveHTMLToJson(filename)
 	# removeHTMLfiles(filename)
 
 	# print(parseEconPerRound(filename))
