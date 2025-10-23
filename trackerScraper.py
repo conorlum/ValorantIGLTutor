@@ -6,6 +6,8 @@ import shutil
 from PIL import Image
 import imagehash
 import glob
+import shutil
+from pathlib import Path
 
 
 
@@ -40,16 +42,32 @@ def moveOneRoundOver():
 	pyautogui.moveRel(96,0)
 
 def parseOutRoundCount(filename):
-	nextLine = False
-	with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html", "r", encoding="utf-8") as file:
-		for line in file:
+	html = ""
+	try:
+		nextLine = False
+		with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html", "r", encoding="utf-8") as file:
+			for line in file:
 
-			if nextLine:
-				html = line
-				nextLine = False
-				break
-			if "<body>" in line:
-				nextLine = True
+				if nextLine:
+					html = line
+					nextLine = False
+					break
+				if "<body>" in line:
+					nextLine = True
+	except Exception as e:
+		pass
+
+	if html.count("text-12 font-medium text-dim") == 0:
+		nextLine = False
+		with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}.html", "r", encoding="utf-8") as file:
+			for line in file:
+
+				if nextLine:
+					html = line
+					nextLine = False
+					break
+				if "<body>" in line:
+					nextLine = True
 
 
 	return html.count("text-12 font-medium text-dim")
@@ -75,44 +93,72 @@ def saveAllRounds(filename):
 
 		TotalRoundIndex += roundIndexTotal
 
+
+def cleanUpFiles(filename):
+
+	path = os.path.join(r"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\", filename + "_ALL_FILES")
+
+	# Create the folder
+	os.makedirs(path, exist_ok=True)
+
+	files = glob.glob(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}*")
+
+	src = Path(r"C:\path\to\source")
+	prefix = Path(path + "\\")
+	
+	for file in files:
+		if "ALL_FILES" in file:
+			continue
+		dst = str(prefix) +"\\" + file.split("TrackerPages\\")[1]
+		shutil.move(str(file), str(dst))
+
+
+
 def saveHTMLToJson(filename):
 	roundCountTotal = parseOutRoundCount(filename)
-	print(roundCountTotal)
 	roundHTMLJson = {}
 	for i in range(0, roundCountTotal):
 		roundIndexStr = str(i+1)
-		filePath = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndexStr}.html"
+		filePath = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndexStr}.html"
 		with open(filePath, 'r') as file:
-			content = file.readlines()
-			html = content[165]
+			nextLine = False
+			for line in file:
+
+				if nextLine:
+					html = line
+					nextLine = False
+					break
+				if "<body>" in line:
+					nextLine = True
+			
 			roundHTMLJson[str(i+1)] = html
 
 	filePath = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
 	with open(filePath, 'w') as file:
 		json.dump(roundHTMLJson, file, indent=4)
 
-def removeHTMLfiles(filename):
-	roundCountTotal = parseOutRoundCount(filename)
+# def removeHTMLfiles(filename):
+# 	roundCountTotal = parseOutRoundCount(filename)
 
-	try:
-		directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_files"
-		shutil.rmtree(directory)
-		print(f"Successfully removed the directory: {directory}")
-		os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html")
-		print(f"Successfully removed the html file")
-	except Exception as e:
-		print(f"Error removing the directory: {e}")
+# 	try:
+# 		directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_files"
+# 		shutil.rmtree(directory)
+# 		print(f"Successfully removed the directory: {directory}")
+# 		os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html")
+# 		print(f"Successfully removed the html file")
+# 	except Exception as e:
+# 		print(f"Error removing the directory: {e}")
 
-	for i in range(0, roundCountTotal):
-		roundIndex = str(i+1)
-		try:
-			directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files"
-			shutil.rmtree(directory)
-			print(f"Successfully removed the directory: {directory}")
-			os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}.html")
-			print(f"Successfully removed the html file")
-		except Exception as e:
-			print(f"Error removing the directory: {e}")
+# 	for i in range(0, roundCountTotal):
+# 		roundIndex = str(i+1)
+# 		try:
+# 			directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files"
+# 			shutil.rmtree(directory)
+# 			print(f"Successfully removed the directory: {directory}")
+# 			os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}.html")
+# 			print(f"Successfully removed the html file")
+# 		except Exception as e:
+# 			print(f"Error removing the directory: {e}")
 
 def loadHTMLSFromJson(filename):
 	htmls = {}
@@ -163,12 +209,7 @@ def parseRoundOutcome(filename):
 def agentDisplayIconLookup(displayiconNumber, roundIndex, filename):
 
 	png_files = glob.glob("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\agentDisplayIconPictureReferences\\*.png")
-	if displayiconNumber == 0:
-		displayiconNumber = ""
-	else:
-		displayiconNumber = f"({displayiconNumber})"
-	# print(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files\\displayicon{displayiconNumber}.png")
-	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files\\displayicon{displayiconNumber}.png"))
+	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\displayicon{displayiconNumber}.png"))
 	best_png = ""
 	best_hash = 2147483647
 
@@ -190,8 +231,7 @@ def agentDisplayIconLookup(displayiconNumber, roundIndex, filename):
 def weaponNewImageLookup(newImageNumber, roundIndex, filename):
 
 	png_files = glob.glob("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\weaponNewImagePictureReferences\\*.png")
-	# print(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files\\displayicon{newImageNumber}.png")
-	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files\\newimage{newImageNumber}.png"))
+	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\newimage{newImageNumber}.png"))
 	best_png = ""
 	best_hash = 2147483647
 
@@ -206,6 +246,7 @@ def weaponNewImageLookup(newImageNumber, roundIndex, filename):
 			best_png = png
 
 	if best_hash > 5:
+
 		return "BAD CLASSIFICATION!"
 	return best_png.split("weaponNewImagePictureReferences\\")[1].split(".png")[0]
 
@@ -245,24 +286,23 @@ def parseRoundKillList(filename):
 
 				classMarkers = logMarker.split("class")
 				killerTeam = classMarkers[1].split("valorant-")[1][:6]
-				killerCharacter = classMarkers[2].split("displayicon")[1][1]
-				
+
+				killerCharacter = classMarkers[2].split("displayicon")[1].split(".png")[0]
+
 				try:
 					deathTeam = classMarkers[-3].split("valorant-")[1][:6]
-					deathCharacter = classMarkers[-2].split("displayicon")[1][1]
+					deathCharacter = classMarkers[-2].split("displayicon")[1].split(".png")[0]
 				except Exception as e:
 					try:
 						deathTeam = classMarkers[8].split("valorant-")[1][:6]
-						deathCharacter = classMarkers[9].split("displayicon")[1][1]
+						deathCharacter = classMarkers[9].split("displayicon")[1].split(".png")[0]
 					except Exception as e:
 						try:
 							deathTeam = classMarkers[7].split("valorant-")[1][:6]
-							deathCharacter = classMarkers[8].split("displayicon")[1][1]
+							deathCharacter = classMarkers[8].split("displayicon")[1].split(".png")[0]
 						except Exception as e:
 							print(classMarkers)
 							print(e)
-				killerCharacter = 0 if killerCharacter == 'p' else killerCharacter
-				deathCharacter = 0 if deathCharacter == 'p' else deathCharacter
 
 
 				killerCharacter = agentDisplayIconLookup(killerCharacter, roundIndex, filename)
@@ -287,7 +327,7 @@ def parseRoundKillList(filename):
 					team2ACSBonus -= 20
 			else:
 				team = classMarkers[1].split("valorant-")[1][:6]
-				character = classMarkers[2].split("displayicon")[1][1]
+				character = classMarkers[2].split("displayicon")[1].split(".png")[0]
 				character = 0 if character == 'p' else character
 				character = agentDisplayIconLookup(character, roundIndex, filename)
 
@@ -308,23 +348,20 @@ def parseRoundKillList(filename):
 def parseTeamPlayers(filename):
 	htmls = loadHTMLSFromJson(filename)
 	round1 = htmls["1"]
-	usernames = round1.split("trn-ign__username fit-long-username")
+	playerLogRecords = round1.split("st-custom-name st-entry-party st-entry")
 	playerUsernamesToAgent = {}
 
 	teamCount = 0
 	team = "team-1"
-	for usernameIndex in range(0,len(usernames)-1):
-		username = usernames[usernameIndex+1]
-		playerAgent = usernames[usernameIndex]
-		if (username[2:].split("<")[0]) == "":
-			continue
+
+	for playerLogIndex in range(0,10):
+		playerLogRecord = playerLogRecords[playerLogIndex+1]
+		playerAgent = playerLogRecord.split("alt=\"")[1].split("\"")[0]
+
+		username = playerLogRecord.split("trn-ign__username fit-long-username\">")[1].split("<")[0]
 
 
-		if usernameIndex == 0:
-			agent = playerAgent.split("alt=")[-1][1:].split("\"")[0]
-		else:
-			agent = playerAgent.split("alt=")[1][1:].split("\"")[0]
-		playerUsernamesToAgent[(username[2:].split("<")[0])] = {"Agent" : agent, "Team" : team, "RoundInfo" : []}
+		playerUsernamesToAgent[username] = {"Agent" : playerAgent, "Team" : team, "RoundInfo" : []}
 
 		teamCount += 1
 		if teamCount == 5:
@@ -364,14 +401,11 @@ def parsePlayerRoundInfo(filename):
 				roundPlayerData["Loadout"] = loadout
 				roundPlayerData["Remaining"] = remaining
 				playerUsernamesToAgent[username]["RoundInfo"].append(roundPlayerData)
-				
-				
-
 
 	return playerUsernamesToAgent
 
 
-def measureImpact(filename):
+def measureOutgoingImpact(filename):
 
 	htmls = loadHTMLSFromJson(filename)
 
@@ -406,7 +440,7 @@ def displayImpact(playersRoundInfo):
 		avgACS = 0
 		for roundIndex in range(0,len(player["RoundInfo"])):
 			print("Round " + str(roundIndex+1))
-			print("Impact: " + str(player["RoundInfo"][roundIndex]["Impact"]))
+			print(player["RoundInfo"][roundIndex]["ImpactDisplay"])
 			print("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
 			print("\n")
 			avgImpact += player["RoundInfo"][roundIndex]["Impact"]
@@ -431,12 +465,12 @@ def calculateRoundImpact(playersRoundInfo, roundKillLogs):
 			killOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"]
 			killFactorAverage = player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"]
 			ACS_Scalor = 1.25
-			player["RoundInfo"][roundIndex]["Impact"] = round(ACS*killFactorAverage*ACS_Scalor + killOrderBonusXEconFactorSum)
+			damages = round(ACS*killFactorAverage*ACS_Scalor)
+			impact = round(damages + killOrderBonusXEconFactorSum)
+			player["RoundInfo"][roundIndex]["Impact"] = impact
+			player["RoundInfo"][roundIndex]["ImpactDisplay"] = "Impact: " + str(impact) +  "   Breakdown:  -->  Damage: " + str(damages) + "   Kill Order: " + str(round(killOrderBonusXEconFactorSum)) + "   Econ Factor: " + str(killFactorAverage)
 
 	return playersRoundInfo
-
-
-
 
 
 def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs):
@@ -449,21 +483,25 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 		for roundIndex in range(0,len(player["RoundInfo"])):
 			ACS = player["RoundInfo"][roundIndex]["Score"]
 			killOrderBonus = 0
-			killFactorAverage = 1
+			killFactorAverage = 0
 			killOrderBonusXEconFactorSum = 0
-
+			killsInRound = 0
 			for killLog in roundKillLogs[str(roundIndex+1)]:
+				
 				if killLog["Event"] == "Kill":
 					if killLog["killerTeam"] == team and killLog["killerCharacter"] == agent:
 						ACS -= killLog["ACS_Bonus"]
 						killOrderBonus += killLog["killOrderBonus"]
-						killFactorAverage *= killLog["EconomyDifferentialFactor"]
+						killFactorAverage += killLog["EconomyDifferentialFactor"]
+						killsInRound += 1
 						killOrderBonusXEconFactorSum += killLog["killOrderBonus*EconFactor"]
 
 			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS
 			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
 			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
-			player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"] = killFactorAverage
+			if killsInRound == 0:
+				killsInRound = 1
+			player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"] = killFactorAverage/killsInRound
 
 
 	return playersRoundInfo
@@ -521,7 +559,6 @@ def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 
 	for roundIndex in roundKillLogs.keys():
 
-			
 		for killLog in roundKillLogs[roundIndex]:
 			if killLog["Event"] == "Kill":
 				killerKey = killLog["killerTeam"]+killLog["killerCharacter"]
@@ -544,9 +581,10 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time\n")
 
-	saveAllRounds(filename)
+	# saveAllRounds(filename)
+	# cleanUpFiles(filename)
 	saveHTMLToJson(filename)
-	# removeHTMLfiles(filename)
+	
 
 	# print(parseEconPerRound(filename))
 	# print(parseRoundOutcome(filename))
@@ -556,7 +594,7 @@ if __name__ == "__main__":
 	# parseTeamPlayers(filename)
 	# print(parsePlayerRoundInfo(filename))
 
-	measureImpact(filename)
+	measureOutgoingImpact(filename)
 	
 
 	
