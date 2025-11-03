@@ -8,11 +8,18 @@ import imagehash
 import glob
 import shutil
 from pathlib import Path
+import networkx as nx
+
+User = "conor" #or User
+baseLocation = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\"
 
 
 
+def createMapFolder(filename):
+	path = os.path.join(baseLocation, filename + "_ALL_FILES")
 
-
+	# Create the folder
+	os.makedirs(path, exist_ok=True)
 
 def clickAndSaveRound(roundCount, filenamePrefix):
 	pyautogui.click()
@@ -30,44 +37,35 @@ def clickAndSaveRound(roundCount, filenamePrefix):
 	pyautogui.press('enter')
 	time.sleep(5)
 
-	while checkFileExists(filename) is False:
+	while checkFileExists(filenamePrefix, filename) is False:
+		print("waiting")
 		time.sleep(10)
 
-def checkFileExists(filename):
-	pattern = os.path.join("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\", f"*{filename}*")
+def checkFileExists(filenamePrefix, filename):
+	path = f"{baseLocation}{filenamePrefix}_ALL_FILES\\"
+	pattern = os.path.join(path, f"*{filename}*")
+	print(pattern)
+	print(glob.glob(pattern))
 	return bool(glob.glob(pattern))
 
 
 def moveOneRoundOver():
-	pyautogui.moveRel(96,0)
+	resolutionScaling = 1 #1.5 when on 4k
+	pyautogui.moveRel(64 * resolutionScaling,0)
 
 def parseOutRoundCount(filename):
 	html = ""
-	try:
-		nextLine = False
-		with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html", "r", encoding="utf-8") as file:
-			for line in file:
 
-				if nextLine:
-					html = line
-					nextLine = False
-					break
-				if "<body>" in line:
-					nextLine = True
-	except Exception as e:
-		pass
+	nextLine = False
+	with open(f"{baseLocation}{filename}_ALL_FILES\\{filename}.html", "r", encoding="utf-8") as file:
+		for line in file:
 
-	if html.count("text-12 font-medium text-dim") == 0:
-		nextLine = False
-		with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}.html", "r", encoding="utf-8") as file:
-			for line in file:
-
-				if nextLine:
-					html = line
-					nextLine = False
-					break
-				if "<body>" in line:
-					nextLine = True
+			if nextLine:
+				html = line
+				nextLine = False
+				break
+			if "<body>" in line:
+				nextLine = True
 
 
 	return html.count("text-12 font-medium text-dim")
@@ -96,14 +94,13 @@ def saveAllRounds(filename):
 
 def cleanUpFiles(filename):
 
-	path = os.path.join(r"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\", filename + "_ALL_FILES")
+	path = os.path.join(baseLocation, filename + "_ALL_FILES")
 
 	# Create the folder
 	os.makedirs(path, exist_ok=True)
 
-	files = glob.glob(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}*")
+	files = glob.glob(f"{baseLocation}{filename}*")
 
-	src = Path(r"C:\path\to\source")
 	prefix = Path(path + "\\")
 	
 	for file in files:
@@ -119,7 +116,7 @@ def saveHTMLToJson(filename):
 	roundHTMLJson = {}
 	for i in range(0, roundCountTotal):
 		roundIndexStr = str(i+1)
-		filePath = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndexStr}.html"
+		filePath = f"{baseLocation}{filename}_ALL_FILES\\{filename}-Round{roundIndexStr}.html"
 		with open(filePath, 'r') as file:
 			nextLine = False
 			for line in file:
@@ -133,7 +130,7 @@ def saveHTMLToJson(filename):
 			
 			roundHTMLJson[str(i+1)] = html
 
-	filePath = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
+	filePath = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
 	with open(filePath, 'w') as file:
 		json.dump(roundHTMLJson, file, indent=4)
 
@@ -162,7 +159,7 @@ def saveHTMLToJson(filename):
 
 def loadHTMLSFromJson(filename):
 	htmls = {}
-	with open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json", 'r') as file:
+	with open(f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json", 'r') as file:
 		htmls = json.load(file)
 
 	return htmls
@@ -208,8 +205,8 @@ def parseRoundOutcome(filename):
 
 def agentDisplayIconLookup(displayiconNumber, roundIndex, filename):
 
-	png_files = glob.glob("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\agentDisplayIconPictureReferences\\*.png")
-	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\displayicon{displayiconNumber}.png"))
+	png_files = glob.glob(f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\agentDisplayIconPictureReferences\\*.png")
+	hash1 = imagehash.average_hash(Image.open(f"{baseLocation}{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\displayicon{displayiconNumber}.png"))
 	best_png = ""
 	best_hash = 2147483647
 
@@ -230,8 +227,8 @@ def agentDisplayIconLookup(displayiconNumber, roundIndex, filename):
 
 def weaponNewImageLookup(newImageNumber, roundIndex, filename):
 
-	png_files = glob.glob("C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\weaponNewImagePictureReferences\\*.png")
-	hash1 = imagehash.average_hash(Image.open(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\newimage{newImageNumber}.png"))
+	png_files = glob.glob("C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\weaponNewImagePictureReferences\\*.png")
+	hash1 = imagehash.average_hash(Image.open(f"{baseLocation}{filename}_ALL_FILES\\{filename}-Round{roundIndex}_files\\newimage{newImageNumber}.png"))
 	best_png = ""
 	best_hash = 2147483647
 
@@ -318,7 +315,8 @@ def parseRoundKillList(filename):
 
 				
 
-				ACSBonus = team1ACSBonus if killerTeam == "tean-1" else team2ACSBonus
+				ACSBonus = team1ACSBonus if killerTeam == "team-1" else team2ACSBonus
+
 				killLog.append({"killerTeam" : killerTeam, "killerCharacter" : killerCharacter, "deathTeam" : deathTeam, "deathCharacter" : deathCharacter, "killWeapon" : killWeapon, "eventTime" : eventTime, "Event" : "Kill", "ACS_Bonus" : ACSBonus})
 
 				if killerTeam == "team-1":
@@ -414,16 +412,16 @@ def measureOutgoingImpact(filename):
 
 	roundKillLogs = parseRoundKillList(filename)
 	roundKillLogs = calculateEconDifferential(playersRoundInfo, roundKillLogs)
-	roundKillLogs = calculateKillOrderBonus(roundKillLogs)
+	roundKillLogs = calculateKillOrderBonuses(roundKillLogs)
 	
 
 	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
 
 	playersRoundInfo = calculateRoundImpact(playersRoundInfo, roundKillLogs)
 
-	displayImpact(playersRoundInfo)
+	displayImpact(playersRoundInfo, True)
 
-def displayImpact(playersRoundInfo):
+def displayImpact(playersRoundInfo, roundInfoBool):
 	for username in playersRoundInfo.keys():
 		player = playersRoundInfo[username]
 		agent = player["Agent"]
@@ -435,17 +433,23 @@ def displayImpact(playersRoundInfo):
 		print(team)
 		print("\n\n")
 
-
+		avgDeathImpact = 0
+		avgKillImpact = 0
 		avgImpact = 0
 		avgACS = 0
 		for roundIndex in range(0,len(player["RoundInfo"])):
-			print("Round " + str(roundIndex+1))
-			print(player["RoundInfo"][roundIndex]["ImpactDisplay"])
-			print("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
-			print("\n")
+			if roundInfoBool:
+				print("Round " + str(roundIndex+1))
+				print(player["RoundInfo"][roundIndex]["ImpactDisplay"])
+				print("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
+				print("\n")
+			avgKillImpact += player["RoundInfo"][roundIndex]["killImpact"]
+			avgDeathImpact += player["RoundInfo"][roundIndex]["deathImpact"]
 			avgImpact += player["RoundInfo"][roundIndex]["Impact"]
 			avgACS += player["RoundInfo"][roundIndex]["Score"]
 
+		print("Average Kill Impact: " + str(round(avgKillImpact/len(player["RoundInfo"]))))
+		print("Average Death Impact: " + str(round(avgDeathImpact/len(player["RoundInfo"]))))
 		print("Average Impact: " + str(round(avgImpact/len(player["RoundInfo"]))))
 		print("Average ACS: " + str(round(avgACS/len(player["RoundInfo"]))))
 		print("\n\n")
@@ -463,12 +467,21 @@ def calculateRoundImpact(playersRoundInfo, roundKillLogs):
 			ACS = player["RoundInfo"][roundIndex]["Damage+Assists"]
 			killOrderBonus = player["RoundInfo"][roundIndex]["killOrderBonusSum"]
 			killOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"]
+			deathOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*EconFactorSum"]
 			killFactorAverage = player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"]
+			if killFactorAverage == 0:
+				killFactorAverage = 1
 			ACS_Scalor = 1.25
 			damages = round(ACS*killFactorAverage*ACS_Scalor)
-			impact = round(damages + killOrderBonusXEconFactorSum)
+			killImpact = round(damages + killOrderBonusXEconFactorSum)
+
+			deathImpact = round(deathOrderBonusXEconFactorSum)
+			player["RoundInfo"][roundIndex]["killImpact"] = killImpact
+			player["RoundInfo"][roundIndex]["deathImpact"] = deathImpact
+
+			impact = killImpact - deathImpact
 			player["RoundInfo"][roundIndex]["Impact"] = impact
-			player["RoundInfo"][roundIndex]["ImpactDisplay"] = "Impact: " + str(impact) +  "   Breakdown:  -->  Damage: " + str(damages) + "   Kill Order: " + str(round(killOrderBonusXEconFactorSum)) + "   Econ Factor: " + str(killFactorAverage)
+			player["RoundInfo"][roundIndex]["ImpactDisplay"] = "Impact: " + str(round(impact)) + "     Breakdown  -->     killImpact: " + str(killImpact) +  "  Damage: " + str(damages) + "   Kill Order: " + str(round(killOrderBonusXEconFactorSum)) + "    Death Order: " + str(round(deathOrderBonusXEconFactorSum)) + "   Econ Factor: " + str(killFactorAverage)
 
 	return playersRoundInfo
 
@@ -486,6 +499,7 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 			killFactorAverage = 0
 			killOrderBonusXEconFactorSum = 0
 			killsInRound = 0
+
 			for killLog in roundKillLogs[str(roundIndex+1)]:
 				
 				if killLog["Event"] == "Kill":
@@ -499,38 +513,160 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS
 			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
 			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
+
+			
 			if killsInRound == 0:
 				killsInRound = 1
 			player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"] = killFactorAverage/killsInRound
 
+		for roundIndex in range(0,len(player["RoundInfo"])):
+			deathOrderBonusXEconFactorSum = 0
+
+			for killLog in roundKillLogs[str(roundIndex+1)]:
+				
+				if killLog["Event"] == "Kill":
+					if killLog["deathTeam"] == team and killLog["deathCharacter"] == agent:
+						deathOrderBonusXEconFactorSum += killLog["deathOrderBonus*EconFactor"]
+
+			player["RoundInfo"][roundIndex]["deathOrderBonus*EconFactorSum"] = deathOrderBonusXEconFactorSum
 
 	return playersRoundInfo
 
-def calculateKillOrderBonus(roundKillLogs):
-	killOrderBonuses = [[],[],[],[],[],[]]
-	killOrderBonuses[0] = [0,0,0,0,0,0]
-	killOrderBonuses[1] = [0,300,200,110,70,50]
-	killOrderBonuses[2] = [0,200,262,180,100,70]
-	killOrderBonuses[3] = [0,110,180,225,150,110]
-	killOrderBonuses[4] = [0,70,100,150,187,130]
-	killOrderBonuses[5] = [0,50,70,110,130,150]
+def calculateKillOrderBonuses(roundKillLogs):
+	
 
 	for roundIndex in roundKillLogs.keys():
 
-
 		team1KillIndex = 5
-		team2KillIndex = 5		
+		team2KillIndex = 5
+		killsInRound = 0	
+		print(roundIndex)
 		for killLog in roundKillLogs[roundIndex]:
 			if killLog["Event"] == "Kill":
-				killLog["killOrderBonus"] = killOrderBonuses[team1KillIndex][team2KillIndex]
-				killLog["killOrderBonus*EconFactor"] = killOrderBonuses[team1KillIndex][team2KillIndex] * killLog["EconomyDifferentialFactor"]
+
+				killOrderBonus = calculateKillOrderBonus(team1KillIndex, team2KillIndex, killLog["killerTeam"], killsInRound)
+				killLog["killOrderBonus"] = killOrderBonus
+				killLog["killOrderBonus*EconFactor"] = killOrderBonus * killLog["EconomyDifferentialFactor"]
+
+				killLog["deathOrderBonus"] = killOrderBonus 
+				killLog["deathOrderBonus*EconFactor"] = killOrderBonus * (killLog["EconomyDifferentialFactor"])
+
+				# if roundIndex == "2":
+				# 	print("death")
+				# 	print(team1KillIndex)
+				# 	print(team2KillIndex)
+				# 	print(killOrderBonuses[team1KillIndex][team2KillIndex])
+				# 	print(killLog["EconomyDifferentialFactor"])
+				# 	print(killLog["deathOrderBonus*EconFactor"])
 
 				if killLog["killerTeam"] == "team-1":
 					team1KillIndex -= 1
 				else:
 					team2KillIndex -= 1
 
+				killsInRound += 1
+
 	return roundKillLogs
+
+def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRound):
+	G = nx.DiGraph()
+	G.add_weighted_edges_from([
+		("5v5", "4v5", 150),
+		("5v5", "5v4", 150),
+
+		("4v5", "3v5", 130),
+		("4v5", "4v4", 140),
+		("5v4", "4v4", 140),
+		("5v4", "5v3", 130),
+
+		("3v5", "2v5", 90),
+		("3v5", "3v4", 120),
+		("4v4", "3v4", 170),
+		("4v4", "3v4", 170),
+		("5v3", "4v3", 120),
+		("5v3", "5v2", 90),
+
+		("2v5", "1v5", 50),
+		("2v5", "2v4", 70),
+		("3v4", "2v4", 130),
+		("3v4", "3v3", 160),
+		("4v3", "3v3", 160),
+		("4v3", "4v2", 130), 
+		("5v2", "4v2", 70),
+		("5v2", "5v1", 50),
+
+		("1v5", "0v5", 40),
+		("1v5", "1v4", 60),
+		("2v4", "1v4", 80),
+		("2v4", "2v3", 130),
+		("3v3", "2v3", 180),
+		("3v3", "3v2", 180),
+		("4v2", "3v2", 130),
+		("4v2", "4v1", 80),
+		("5v1", "4v1", 60),
+		("5v1", "5v0", 40),
+
+		("1v4", "0v4", 50),
+		("1v4", "1v3", 70),
+		("2v3", "1v3", 100),
+		("2v3", "2v2", 170),
+		("3v2", "2v2", 170),
+		("3v2", "3v1", 100),
+		("4v1", "3v1", 70),
+		("4v1", "4v0", 50),
+
+		("1v3", "0v3", 70),
+		("1v3", "1v2", 120),
+		("2v2", "1v2", 200),
+		("2v2", "2v1", 200),
+		("3v1", "2v1", 120),
+		("3v1", "3v0", 70),
+
+		("1v2", "0v2", 130),
+		("1v2", "1v1", 190),
+		("2v1", "1v1", 190),
+		("2v1", "2v0", 130),
+
+		("1v1", "0v1", 250),
+		("1v1", "1v0", 250)
+	])
+
+
+
+	beforeNode = f"{team1KillIndex}v{team2KillIndex}"
+	if killTeam == "team-1":
+		team1KillIndex -= 1
+	else:
+		team2KillIndex -= 1
+
+	afterNode = f"{team1KillIndex}v{team2KillIndex}"
+	print("kill")
+	print(beforeNode)
+	print(afterNode)
+	try:
+		return G[beforeNode][afterNode]["weight"]
+	except Exception as e:
+		return 100
+
+
+	# killOrderConstant = 150
+	# killScalor = 10
+
+
+	# differentialFactor = killDifferentialFactor(team1KillIndex, team2KillIndex, killTeam)
+	# playerCount = 10 - killsInRound
+	# killOrderBonus = (killOrderConstant - (killScalor*killsInRound)) * (differentialFactor/playerCount)
+	# return killOrderBonus
+
+def killDifferentialFactor(team1KillIndex, team2KillIndex, killTeam):
+	if killTeam == "team-1":
+		return 10 * (differentialFactorFunction(team1KillIndex, team2KillIndex))
+	else:
+		return 10 * (differentialFactorFunction(team1KillIndex, team2KillIndex))
+
+def differentialFactorFunction(team1, team2):
+	delta = abs(team1 - team2)
+	return (delta + 1)/ (delta*delta + 2* delta + 1)
 
 def reverseAgentTeamToPlayerUsername(playersRoundInfo):
 
@@ -551,7 +687,7 @@ def categorizeEcon(EconOfLoadout):
 	elif EconOfLoadout < 3300:
 		return 6 #ECON
 	else:
-		return 4 #FAIR	
+		return 4 #FULL BUY	
 
 def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 
@@ -577,9 +713,12 @@ def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 if __name__ == "__main__":
 	print("Starting the scraping")
 	print("Open the match in a new window on the main screen")
-	print("Save the round overview for the first round as a single file mhtml and name it with the structure MapDDMMYYHMM")
 
-	filename = input("Please enter the map followed by date month year and time\n")
+	filename = input("Please enter the map followed by date month year and time Ex: <MAP>MMDDYYHHMM\n")
+
+	# createMapFolder(filename)
+
+	input("save the tracker page as a complete webpage into the newly created folder following the same name")
 
 	# saveAllRounds(filename)
 	# cleanUpFiles(filename)
