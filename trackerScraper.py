@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 import networkx as nx
 
-User = "conor" #or User
+User = "User" #conor or User 
 baseLocation = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\"
 
 
@@ -50,7 +50,7 @@ def checkFileExists(filenamePrefix, filename):
 
 
 def moveOneRoundOver():
-	resolutionScaling = 1 #1.5 when on 4k
+	resolutionScaling = 1.5 #1.5 when on 4k
 	pyautogui.moveRel(64 * resolutionScaling,0)
 
 def parseOutRoundCount(filename):
@@ -222,6 +222,9 @@ def agentDisplayIconLookup(displayiconNumber, roundIndex, filename):
 
 	if best_hash > 5:
 		return "BAD CLASSIFICATION!"
+
+	if best_png.split("agentDisplayIconPictureReferences\\")[1].split(".png")[0] == "KAYO":
+		return "KAY/O"
 
 	return best_png.split("agentDisplayIconPictureReferences\\")[1].split(".png")[0]
 
@@ -532,6 +535,24 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 
 	return playersRoundInfo
 
+
+def checkForResurrection(killLogIndex, roundKillLog):
+
+	agent = roundKillLog[killLogIndex]["deathCharacter"]
+	team = roundKillLog[killLogIndex]["deathTeam"]
+	for kli in range(killLogIndex + 1, len(roundKillLog)):
+		killLog = roundKillLog[kli]
+		if killLog["Event"] == "Kill":
+			if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
+				return True
+			if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
+				return True
+
+	return False
+
+def checkForSelfKill(killLog):
+	return killLog["deathCharacter"] == killLog["killerCharacter"] and killLog["deathTeam"] == killLog["killerTeam"]
+
 def calculateKillOrderBonuses(roundKillLogs):
 	
 
@@ -540,35 +561,53 @@ def calculateKillOrderBonuses(roundKillLogs):
 		team1KillIndex = 5
 		team2KillIndex = 5
 		killsInRound = 0	
-		print(roundIndex)
-		for killLog in roundKillLogs[roundIndex]:
+
+		for killLogIndex in range(0, len(roundKillLogs[roundIndex])):
+			killLog = roundKillLogs[roundIndex][killLogIndex]
 			if killLog["Event"] == "Kill":
 
-				killOrderBonus = calculateKillOrderBonus(team1KillIndex, team2KillIndex, killLog["killerTeam"], killsInRound)
-				killLog["killOrderBonus"] = killOrderBonus
-				killLog["killOrderBonus*EconFactor"] = killOrderBonus * killLog["EconomyDifferentialFactor"]
+
+
+				selfKill = checkForSelfKill(killLog)
+
+				killOrderBonus = calculateKillOrderBonus(team1KillIndex, team2KillIndex, killLog["killerTeam"], killsInRound, selfKill)
+
+
+				killLog["killOrderBonus"] = killOrderBonus if not selfKill else 0
+				killLog["killOrderBonus*EconFactor"] = killOrderBonus * killLog["EconomyDifferentialFactor"] if not selfKill else 0
 
 				killLog["deathOrderBonus"] = killOrderBonus 
-				killLog["deathOrderBonus*EconFactor"] = killOrderBonus * (killLog["EconomyDifferentialFactor"])
+				if selfKill:
+					if killLog["EconomyDifferentialFactor"] == 4:
+						deathEconFactor = .9
+					elif killLog["EconomyDifferentialFactor"] == 6:
+						deathEconFactor = .75
+					else:
+						deathEconFactor = .15
 
-				# if roundIndex == "2":
-				# 	print("death")
-				# 	print(team1KillIndex)
-				# 	print(team2KillIndex)
-				# 	print(killOrderBonuses[team1KillIndex][team2KillIndex])
-				# 	print(killLog["EconomyDifferentialFactor"])
-				# 	print(killLog["deathOrderBonus*EconFactor"])
-
-				if killLog["killerTeam"] == "team-1":
-					team1KillIndex -= 1
 				else:
-					team2KillIndex -= 1
+					deathEconFactor = killLog["EconomyDifferentialFactor"]
+
+				killLog["deathOrderBonus*EconFactor"] = killOrderBonus * (deathEconFactor)
+
+				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
+				if not resurrection:
+					if selfKill:
+						if killLog["killerTeam"] == "team-1":
+							team2KillIndex -= 1
+						else:
+							team1KillIndex -= 1
+					else:
+						if killLog["killerTeam"] == "team-1":
+							team1KillIndex -= 1
+						else:
+							team2KillIndex -= 1
 
 				killsInRound += 1
 
 	return roundKillLogs
 
-def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRound):
+def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRound, selfKill):
 	G = nx.DiGraph()
 	G.add_weighted_edges_from([
 		("5v5", "4v5", 150),
@@ -608,10 +647,10 @@ def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRou
 
 		("1v4", "0v4", 50),
 		("1v4", "1v3", 70),
-		("2v3", "1v3", 100),
+		("2v3", "1v3", 140),
 		("2v3", "2v2", 170),
 		("3v2", "2v2", 170),
-		("3v2", "3v1", 100),
+		("3v2", "3v1", 140),
 		("4v1", "3v1", 70),
 		("4v1", "4v0", 50),
 
@@ -634,39 +673,24 @@ def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRou
 
 
 	beforeNode = f"{team1KillIndex}v{team2KillIndex}"
-	if killTeam == "team-1":
-		team1KillIndex -= 1
+	if selfKill:
+		if killTeam == "team-1":
+			team2KillIndex -= 1
+		else:
+			team1KillIndex -= 1
 	else:
-		team2KillIndex -= 1
+		if killTeam == "team-1":
+			team1KillIndex -= 1
+		else:
+			team2KillIndex -= 1
 
 	afterNode = f"{team1KillIndex}v{team2KillIndex}"
-	print("kill")
-	print(beforeNode)
-	print(afterNode)
+
 	try:
 		return G[beforeNode][afterNode]["weight"]
 	except Exception as e:
 		return 100
 
-
-	# killOrderConstant = 150
-	# killScalor = 10
-
-
-	# differentialFactor = killDifferentialFactor(team1KillIndex, team2KillIndex, killTeam)
-	# playerCount = 10 - killsInRound
-	# killOrderBonus = (killOrderConstant - (killScalor*killsInRound)) * (differentialFactor/playerCount)
-	# return killOrderBonus
-
-def killDifferentialFactor(team1KillIndex, team2KillIndex, killTeam):
-	if killTeam == "team-1":
-		return 10 * (differentialFactorFunction(team1KillIndex, team2KillIndex))
-	else:
-		return 10 * (differentialFactorFunction(team1KillIndex, team2KillIndex))
-
-def differentialFactorFunction(team1, team2):
-	delta = abs(team1 - team2)
-	return (delta + 1)/ (delta*delta + 2* delta + 1)
 
 def reverseAgentTeamToPlayerUsername(playersRoundInfo):
 
@@ -705,7 +729,9 @@ def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 				deathUsername = agentTeamToPlayer[deathKey]
 				deathEcon = playersRoundInfo[deathUsername]["RoundInfo"][int(roundIndex)-1]["Loadout"]
 
-				killLog["EconomyDifferentialFactor"] = categorizeEcon(killerEcon)/categorizeEcon(deathEcon)
+				selfKill = checkForSelfKill(killLog)
+
+				killLog["EconomyDifferentialFactor"] = categorizeEcon(killerEcon)/categorizeEcon(deathEcon) if not selfKill else categorizeEcon(deathEcon)
 
 	return roundKillLogs
 
@@ -716,13 +742,13 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time Ex: <MAP>MMDDYYHHMM\n")
 
-	# createMapFolder(filename)
+	createMapFolder(filename)
 
 	input("save the tracker page as a complete webpage into the newly created folder following the same name")
 
 	# saveAllRounds(filename)
 	# cleanUpFiles(filename)
-	saveHTMLToJson(filename)
+	# saveHTMLToJson(filename)
 	
 
 	# print(parseEconPerRound(filename))
@@ -734,11 +760,3 @@ if __name__ == "__main__":
 	# print(parsePlayerRoundInfo(filename))
 
 	measureOutgoingImpact(filename)
-	
-
-	
-
-
-
-
-	
