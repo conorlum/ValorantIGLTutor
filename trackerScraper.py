@@ -9,8 +9,10 @@ import glob
 import shutil
 from pathlib import Path
 import networkx as nx
+import matplotlib.pyplot as plt
+from networkx.drawing.nx_pydot import graphviz_layout
 
-User = "User" #conor or User 
+User = "conor" #conor or User 
 baseLocation = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\"
 
 
@@ -50,7 +52,7 @@ def checkFileExists(filenamePrefix, filename):
 
 
 def moveOneRoundOver():
-	resolutionScaling = 1.5 #1.5 when on 4k
+	resolutionScaling = 1 #1.5 when on 4k
 	pyautogui.moveRel(64 * resolutionScaling,0)
 
 def parseOutRoundCount(filename):
@@ -134,28 +136,6 @@ def saveHTMLToJson(filename):
 	with open(filePath, 'w') as file:
 		json.dump(roundHTMLJson, file, indent=4)
 
-# def removeHTMLfiles(filename):
-# 	roundCountTotal = parseOutRoundCount(filename)
-
-# 	try:
-# 		directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}_files"
-# 		shutil.rmtree(directory)
-# 		print(f"Successfully removed the directory: {directory}")
-# 		os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}.html")
-# 		print(f"Successfully removed the html file")
-# 	except Exception as e:
-# 		print(f"Error removing the directory: {e}")
-
-# 	for i in range(0, roundCountTotal):
-# 		roundIndex = str(i+1)
-# 		try:
-# 			directory = f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}_files"
-# 			shutil.rmtree(directory)
-# 			print(f"Successfully removed the directory: {directory}")
-# 			os.remove(f"C:\\Users\\User\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\{filename}-Round{roundIndex}.html")
-# 			print(f"Successfully removed the html file")
-# 		except Exception as e:
-# 			print(f"Error removing the directory: {e}")
 
 def loadHTMLSFromJson(filename):
 	htmls = {}
@@ -255,9 +235,6 @@ def convertTime(stringTime):
 	return int(stringTime[0])*60 + int(stringTime[2:])
 
 def parseRoundKillList(filename):
-	# need to consider sage clove and kayo res.  pheonix ult does not show up in the kill logs.  
-	# thinking that the "res" will show up as a second death or later kill for that specific image. 
-	# the res can go unknown if not shown in log, but in this case had little affect on the round.
 	htmls = loadHTMLSFromJson(filename)
 
 	# figure this out 
@@ -420,9 +397,10 @@ def measureOutgoingImpact(filename):
 
 	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
 
-	playersRoundInfo = calculateRoundImpact(playersRoundInfo, roundKillLogs)
+	playersRoundInfo = calculateRoundImpact(playersRoundInfo)
 
 	displayImpact(playersRoundInfo, True)
+	createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, "NPrightdolphin")
 
 def displayImpact(playersRoundInfo, roundInfoBool):
 	for username in playersRoundInfo.keys():
@@ -458,7 +436,145 @@ def displayImpact(playersRoundInfo, roundInfoBool):
 		print("\n\n")
 
 
-def calculateRoundImpact(playersRoundInfo, roundKillLogs):
+def createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, player):
+
+	G = nx.DiGraph()
+	G.add_weighted_edges_from([
+		("5v5", "4v5", 0),
+		("5v5", "5v4", 0),
+
+		("4v5", "3v5", 0),
+		("4v5", "4v4", 0),
+		("5v4", "4v4", 0),
+		("5v4", "5v3", 0),
+
+		("3v5", "2v5", 0),
+		("3v5", "3v4", 0),
+		("4v4", "3v4", 0),
+		("4v4", "4v3", 0),
+		("5v3", "4v3", 0),
+		("5v3", "5v2", 0),
+
+		("2v5", "1v5", 0),
+		("2v5", "2v4", 0),
+		("3v4", "2v4", 0),
+		("3v4", "3v3", 0),
+		("4v3", "3v3", 0),
+		("4v3", "4v2", 0), 
+		("5v2", "4v2", 0),
+		("5v2", "5v1", 0),
+
+		("1v5", "0v5", 0),
+		("1v5", "1v4", 0),
+		("2v4", "1v4", 0),
+		("2v4", "2v3", 0),
+		("3v3", "2v3", 0),
+		("3v3", "3v2", 0),
+		("4v2", "3v2", 0),
+		("4v2", "4v1", 0),
+		("5v1", "4v1", 0),
+		("5v1", "5v0", 0),
+
+		("1v4", "0v4", 0),
+		("1v4", "1v3", 0),
+		("2v3", "1v3", 0),
+		("2v3", "2v2", 0),
+		("3v2", "2v2", 0),
+		("3v2", "3v1", 0),
+		("4v1", "3v1", 0),
+		("4v1", "4v0", 0),
+
+		("1v3", "0v3", 0),
+		("1v3", "1v2", 0),
+		("2v2", "1v2", 0),
+		("2v2", "2v1", 0),
+		("3v1", "2v1", 0),
+		("3v1", "3v0", 0),
+
+		("1v2", "0v2", 0),
+		("1v2", "1v1", 0),
+		("2v1", "1v1", 0),
+		("2v1", "2v0", 0),
+
+		("1v1", "0v1", 0),
+		("1v1", "1v0", 0)
+	])
+
+
+	player = playersRoundInfo[player]
+	agent = player["Agent"]
+	team = player["Team"]
+
+	for roundIndex in range(0,len(player["RoundInfo"])):
+
+		for killLog in roundKillLogs[str(roundIndex+1)]:
+
+			if killLog["Event"] == "Kill":
+				beforeState = None
+				afterState = None
+				if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
+					if "1" in team:
+						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+						afterState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1] - 1)
+					else:
+						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
+						afterState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0] - 1)
+
+					if G.has_edge(beforeState, afterState):
+						G[beforeState][afterState]["weight"] += 1
+					else:
+						G.add_edge(beforeState, afterState, weight=1)
+
+
+
+				if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
+					if "1" in team:
+						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+						afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1])
+					else:
+						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
+						afterState = str(killLog["playersOnTeam"][1] - 1) + "v" + str(killLog["playersOnTeam"][0])
+
+					if G.has_edge(beforeState, afterState):
+						G[beforeState][afterState]["weight"] -= 1
+					else:
+						G.add_edge(beforeState, afterState, weight=1)
+
+
+				# if beforeState and afterState:
+				# 	if G.has_edge(beforeState, afterState):
+				# 		G[beforeState][afterState]["weight"] += 1
+				# 	else:
+				# 		G.add_edge(beforeState, afterState, weight=1)
+
+
+	pos = graphviz_layout(G, prog="dot")
+
+	plt.figure(figsize=(7,5))
+
+	# Draw nodes
+	nx.draw_networkx_nodes(G, pos, node_size=800, node_color="lightblue")
+
+	# Draw edges with arrowheads
+	nx.draw_networkx_edges(
+		G, pos,
+		arrowstyle='-|>',
+		arrowsize=20,
+		width=2
+	)
+
+	# Draw labels on nodes
+	nx.draw_networkx_labels(G, pos, font_size=12)
+
+	# Draw edge labels (weights)
+	edge_labels = nx.get_edge_attributes(G, 'weight')
+	nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=12)
+
+	plt.axis("off")
+	plt.show()
+
+
+def calculateRoundImpact(playersRoundInfo):
 
 
 	for username in playersRoundInfo.keys():
@@ -590,6 +706,8 @@ def calculateKillOrderBonuses(roundKillLogs):
 
 				killLog["deathOrderBonus*EconFactor"] = killOrderBonus * (deathEconFactor)
 
+				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
+
 				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
 				if not resurrection:
 					if selfKill:
@@ -621,7 +739,7 @@ def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRou
 		("3v5", "2v5", 90),
 		("3v5", "3v4", 120),
 		("4v4", "3v4", 170),
-		("4v4", "3v4", 170),
+		("4v4", "4v3", 170),
 		("5v3", "4v3", 120),
 		("5v3", "5v2", 90),
 
