@@ -382,26 +382,6 @@ def parsePlayerRoundInfo(filename):
 
 	return playerUsernamesToAgent
 
-
-def measureOutgoingImpact(filename):
-
-	htmls = loadHTMLSFromJson(filename)
-
-	playersRoundInfo = parsePlayerRoundInfo(filename)
-	# print(playersRoundInfo)
-
-	roundKillLogs = parseRoundKillList(filename)
-	roundKillLogs = calculateEconDifferential(playersRoundInfo, roundKillLogs)
-	roundKillLogs = calculateKillOrderBonuses(roundKillLogs)
-	
-
-	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
-
-	playersRoundInfo = calculateRoundImpact(playersRoundInfo)
-
-	displayImpact(playersRoundInfo, True)
-	createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, "NPrightdolphin")
-
 def displayImpact(playersRoundInfo, roundInfoBool):
 	for username in playersRoundInfo.keys():
 		player = playersRoundInfo[username]
@@ -587,14 +567,16 @@ def calculateRoundImpact(playersRoundInfo):
 			killOrderBonus = player["RoundInfo"][roundIndex]["killOrderBonusSum"]
 			killOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"]
 			deathOrderBonusXEconFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*EconFactorSum"]
+			killOrderBonusXTimeFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*TimeFactorSum"]
+			deathOrderBonusXTimeFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*TimeFactorSum"]
 			killFactorAverage = player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"]
 			if killFactorAverage == 0:
 				killFactorAverage = 1
 			ACS_Scalor = 1.25
 			damages = round(ACS*killFactorAverage*ACS_Scalor)
-			killImpact = round(damages + killOrderBonusXEconFactorSum)
+			killImpact = round(damages + ((killOrderBonusXEconFactorSum + killOrderBonusXTimeFactorSum) / 2))
 
-			deathImpact = round(deathOrderBonusXEconFactorSum)
+			deathImpact = round((deathOrderBonusXEconFactorSum + deathOrderBonusXTimeFactorSum) / 2)
 			player["RoundInfo"][roundIndex]["killImpact"] = killImpact
 			player["RoundInfo"][roundIndex]["deathImpact"] = deathImpact
 
@@ -617,6 +599,7 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 			killOrderBonus = 0
 			killFactorAverage = 0
 			killOrderBonusXEconFactorSum = 0
+			killOrderBonusXTimeFactorSum = 0
 			killsInRound = 0
 
 			for killLog in roundKillLogs[str(roundIndex+1)]:
@@ -628,10 +611,12 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 						killFactorAverage += killLog["EconomyDifferentialFactor"]
 						killsInRound += 1
 						killOrderBonusXEconFactorSum += killLog["killOrderBonus*EconFactor"]
+						killOrderBonusXTimeFactorSum += killLog["killOrderBonus*TimeFactor"]
 
 			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS
 			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
 			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
+			player["RoundInfo"][roundIndex]["killOrderBonus*TimeFactorSum"] = killOrderBonusXTimeFactorSum
 
 			
 			if killsInRound == 0:
@@ -640,14 +625,17 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 
 		for roundIndex in range(0,len(player["RoundInfo"])):
 			deathOrderBonusXEconFactorSum = 0
+			deathOrderBonusXTimeFactorSum = 0
 
 			for killLog in roundKillLogs[str(roundIndex+1)]:
 				
 				if killLog["Event"] == "Kill":
 					if killLog["deathTeam"] == team and killLog["deathCharacter"] == agent:
 						deathOrderBonusXEconFactorSum += killLog["deathOrderBonus*EconFactor"]
+						deathOrderBonusXTimeFactorSum += killLog["deathOrderBonus*TimeFactor"]
 
 			player["RoundInfo"][roundIndex]["deathOrderBonus*EconFactorSum"] = deathOrderBonusXEconFactorSum
+			player["RoundInfo"][roundIndex]["deathOrderBonus*TimeFactorSum"] = deathOrderBonusXTimeFactorSum
 
 	return playersRoundInfo
 
@@ -676,12 +664,27 @@ def calculateKillOrderBonuses(roundKillLogs):
 
 		team1KillIndex = 5
 		team2KillIndex = 5
-		killsInRound = 0	
+		killsInRound = 0
+
+		planted = False
+		plantedTime = 0
+		exploded = False
+		defused = False
 
 		for killLogIndex in range(0, len(roundKillLogs[roundIndex])):
 			killLog = roundKillLogs[roundIndex][killLogIndex]
-			if killLog["Event"] == "Kill":
 
+			if killLog["Event"] == "Planted":
+				planted = True
+				plantedTime = killLog["eventTime"]
+
+			if killLog["Event"] == "Exploded":
+				exploded = True
+
+			if killLog["Event"] == "Defused":
+				defused = True
+
+			if killLog["Event"] == "Kill":
 
 
 				selfKill = checkForSelfKill(killLog)
@@ -692,7 +695,12 @@ def calculateKillOrderBonuses(roundKillLogs):
 				killLog["killOrderBonus"] = killOrderBonus if not selfKill else 0
 				killLog["killOrderBonus*EconFactor"] = killOrderBonus * killLog["EconomyDifferentialFactor"] if not selfKill else 0
 
-				killLog["deathOrderBonus"] = killOrderBonus 
+				killLog["killOrderBonus*TimeFactor"] = killOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"])
+
+
+				deathOrderBonus = killOrderBonus * calculateTradedFactor(roundKillLogs[roundIndex], killLog, selfKill)
+
+				killLog["deathOrderBonus"] = deathOrderBonus 
 				if selfKill:
 					if killLog["EconomyDifferentialFactor"] == 4:
 						deathEconFactor = .9
@@ -704,7 +712,8 @@ def calculateKillOrderBonuses(roundKillLogs):
 				else:
 					deathEconFactor = killLog["EconomyDifferentialFactor"]
 
-				killLog["deathOrderBonus*EconFactor"] = killOrderBonus * (deathEconFactor)
+				killLog["deathOrderBonus*EconFactor"] = deathOrderBonus * (deathEconFactor)
+				killLog["deathOrderBonus*TimeFactor"] = deathOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"])
 
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
 
@@ -724,6 +733,50 @@ def calculateKillOrderBonuses(roundKillLogs):
 				killsInRound += 1
 
 	return roundKillLogs
+
+def calculateTradedFactor(roundKillLog, checkingKillLog, selfKill):
+
+	if selfKill:
+		return 1
+
+	timeToTrade = 10
+
+	killerCharacter = checkingKillLog["killerCharacter"]
+	killerTeam = checkingKillLog["killerTeam"]
+	deathTime = checkingKillLog["eventTime"]
+
+	for killLog in roundKillLog:
+
+		if killLog["Event"] == "Kill":
+
+			if killLog["deathCharacter"] == killerCharacter and killLog["deathTeam"] == killerTeam:
+
+				tradeTime = killLog["eventTime"] - deathTime
+				if tradeTime > 0:
+					if tradeTime <= timeToTrade:
+						tradeInTimeFactor = tradeTime / 10 
+						return tradeInTimeFactor
+
+	return 1
+
+
+def calculateTimeFactor(planted, plantedTime, exploded, defused, killTime):
+	timeFactor = 1
+
+	if exploded or defused:
+		timeFactor = .25
+		return timeFactor
+
+	if killTime >= plantedTime + 38 and killTime <= plantedTime + 45:
+		timeFactor = 1.75
+		return timeFactor
+
+	if planted:
+		timeFactor = 1.1
+		return timeFactor
+
+	return timeFactor
+
 
 def calculateKillOrderBonus(team1KillIndex, team2KillIndex, killTeam, killsInRound, selfKill):
 	G = nx.DiGraph()
@@ -852,6 +905,26 @@ def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 				killLog["EconomyDifferentialFactor"] = categorizeEcon(killerEcon)/categorizeEcon(deathEcon) if not selfKill else categorizeEcon(deathEcon)
 
 	return roundKillLogs
+
+
+def measureOutgoingImpact(filename):
+
+	htmls = loadHTMLSFromJson(filename)
+
+	playersRoundInfo = parsePlayerRoundInfo(filename)
+	# print(playersRoundInfo)
+
+	roundKillLogs = parseRoundKillList(filename)
+	roundKillLogs = calculateEconDifferential(playersRoundInfo, roundKillLogs)
+	roundKillLogs = calculateKillOrderBonuses(roundKillLogs)
+	
+
+	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
+
+	playersRoundInfo = calculateRoundImpact(playersRoundInfo)
+
+	displayImpact(playersRoundInfo, False)
+	# createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, "NPrightdolphin")
 
 
 if __name__ == "__main__":
