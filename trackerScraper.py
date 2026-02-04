@@ -761,7 +761,10 @@ def calculateEconLossBonus(roundIndex):
 
 
 def calculateSwingFactor(playersRoundInfo, roundIndex, team):
-	if roundIndex == "1" or roundIndex == "13":
+	if roundIndex == "1" or roundIndex == "13" or roundIndex == "12" or roundIndex == "24":
+		return 1
+
+	if int(roundIndex) > 24:
 		return 1
 
 	loadoutThreshold = 3400
