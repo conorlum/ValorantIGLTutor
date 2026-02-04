@@ -621,7 +621,7 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 						killOrderBonusXTimeFactorSum += killLog["killOrderBonus*TimeFactor"]
 						killOrderBonusXSwingFactorSum += killLog["killOrderBonus*SwingFactor"]
 
-			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS
+			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS - 50*(killsInRound - 1)
 			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
 			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
 			player["RoundInfo"][roundIndex]["killOrderBonus*TimeFactorSum"] = killOrderBonusXTimeFactorSum
@@ -794,9 +794,9 @@ def calculateSwingFactor(playersRoundInfo, roundIndex, team):
 
 
 	if boughtIn >= 4:
-		econImpacts = highEconTeammate - lowEconTeammate - deathsInRound
+		econImpacts = highEconTeammate - max(lowEconTeammate, deathsInRound)
 		if econImpacts < 0:
-			return 1 + abs(econImpacts) * .1 
+			return 1 + abs(econImpacts) * .2 
 
 	return 1
 
