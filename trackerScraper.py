@@ -175,11 +175,13 @@ def parseRoundOutcome(filename):
 
 	for roundIndex in htmls.keys():
 		html = htmls[str(roundIndex)]
-		roundMarker = html.split(f"text-12 font-medium text-dim\">{roundIndex}<")[1]
+		# roundMarker = html.split(f"text-12 font-medium text-dim\">{roundIndex}<")[1]
 
-		roundOutcomeSplit = roundMarker.split('alt=')[1]
-		roundOutcomeString = roundOutcomeSplit.split('width')[0].replace('"', '').strip()
-		roundOutcomes[str(roundIndex)] = roundOutcomeString
+		# roundOutcomeSplit = roundMarker.split('alt=')[1]
+		# roundOutcomeString = roundOutcomeSplit.split('Win')[0].replace('"', '').strip()
+		# roundOutcomes[str(roundIndex)] = roundOutcomeString
+		roundOutcome = html.split("Win")[0].split("> ")[-1].strip()
+		roundOutcomes[str(roundIndex)] = roundOutcome
 
 	return roundOutcomes
 
@@ -233,6 +235,7 @@ def weaponNewImageLookup(newImageNumber, roundIndex, filename):
 
 def convertTime(stringTime):
 	return int(stringTime[0])*60 + int(stringTime[2:])
+
 
 def parseRoundKillList(filename):
 	htmls = loadHTMLSFromJson(filename)
@@ -317,6 +320,8 @@ def parseRoundKillList(filename):
 
 			if "Defused" in logMarker:
 				killLog.append({"Team" : team, "Character" : character, "Event" : "Defused", "eventTime" : eventTime})
+
+
 
 		roundKillLogs[roundIndex] = killLog
 
@@ -669,8 +674,7 @@ def checkForResurrection(killLogIndex, roundKillLog):
 def checkForSelfKill(killLog):
 	return killLog["deathCharacter"] == killLog["killerCharacter"] and killLog["deathTeam"] == killLog["killerTeam"]
 
-def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo):
-	
+def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 
 	for roundIndex in roundKillLogs.keys():
 
@@ -683,8 +687,8 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo):
 		exploded = False
 		defused = False
 
-		team1SwingFactor = calculateSwingFactor(playersRoundInfo, roundIndex, "team-1")
-		team2SwingFactor = calculateSwingFactor(playersRoundInfo, roundIndex, "team-2")
+		team1SwingFactor = calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-1")
+		team2SwingFactor = calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-2")
 		print(roundIndex)
 		print("SwingFactor")
 		print(team1SwingFactor)
@@ -756,11 +760,40 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo):
 
 	return roundKillLogs
 
-def calculateEconLossBonus(roundIndex):
-	return 1900
+def calculateEconBonus(roundOutcomes, roundIndex, team):
+	teamWon = calculateTeamWon(roundOutcomes, roundIndex, team)
+
+	if teamWon:
+		return 3000
+
+	roundVar = int(roundIndex) - 1
+	lossStreak = 0
+	while roundVar > 0:
+		lossStreakTeamWon = calculateTeamWon(roundOutcomes, str(roundVar), team)
+		if not lossStreakTeamWon:
+			lossStreak += 1
+		else:
+			break
+
+		roundVar -= 1
+			
+
+	if lossStreak == 0:
+		return 1900
+	elif lossStreak == 1:
+		return 2400
+	else:
+		return 2900
 
 
-def calculateSwingFactor(playersRoundInfo, roundIndex, team):
+def calculateTeamWon(roundOutcomes, roundIndex, team):
+	roundOutcome = roundOutcomes[roundIndex]
+	teamOutcome = roundOutcome.split("Team ")[1][0]
+	return (teamOutcome == "A" and team == "team-1") or (teamOutcome == "B" and team == "team-2")
+
+
+def calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, team):
+	econBonus = calculateEconBonus(roundOutcomes, roundIndex, team)
 	if roundIndex == "1" or roundIndex == "13" or roundIndex == "12" or roundIndex == "24":
 		return 1
 
@@ -783,10 +816,10 @@ def calculateSwingFactor(playersRoundInfo, roundIndex, team):
 			remaining = playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Remaining"]
 			teamRemainingCredits += remaining
 
-			if remaining + calculateEconLossBonus(roundIndex) < 3400 or remaining < 400:
+			if remaining + calculateEconBonus(roundOutcomes, roundIndex, team) < 3400 or remaining < 400:
 				lowEconTeammate += 1
 
-			if remaining + calculateEconLossBonus(roundIndex) > 7000:
+			if remaining + calculateEconBonus(roundOutcomes, roundIndex, team) > 7000:
 				highEconTeammate += 1
 
 			if playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Deaths"] > 0:
@@ -988,9 +1021,11 @@ def measureOutgoingImpact(filename):
 	playersRoundInfo = parsePlayerRoundInfo(filename)
 	# print(playersRoundInfo)
 
+	roundOutcomes = parseRoundOutcome(filename)
+
 	roundKillLogs = parseRoundKillList(filename)
 	roundKillLogs = calculateEconDifferential(playersRoundInfo, roundKillLogs)
-	roundKillLogs = calculateKillOrderBonuses(roundKillLogs, playersRoundInfo)
+	roundKillLogs = calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes)
 	
 
 	playersRoundInfo = calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, roundKillLogs)
@@ -1017,7 +1052,7 @@ if __name__ == "__main__":
 	
 
 	# print(parseEconPerRound(filename))
-	# print(parseRoundOutcome(filename))
+	print(parseRoundOutcome(filename))
 	# print(parseRoundKillList(filename)["2"])
 	# print(parseRoundKillList(filename)["23"])
 
