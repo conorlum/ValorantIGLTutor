@@ -388,16 +388,18 @@ def parsePlayerRoundInfo(filename):
 	return playerUsernamesToAgent
 
 def displayImpact(playersRoundInfo, roundInfoBool):
+	sortedByImpact = {}
 	for username in playersRoundInfo.keys():
+		displayString = []
 		player = playersRoundInfo[username]
 		agent = player["Agent"]
 		team = player["Team"]
 
-		print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-		print(username)
-		print(agent)
-		print(team)
-		print("\n\n")
+		displayString.append("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		displayString.append(username)
+		displayString.append(agent)
+		displayString.append(team)
+		displayString.append("\n")
 
 		avgDeathImpact = 0
 		avgKillImpact = 0
@@ -405,21 +407,31 @@ def displayImpact(playersRoundInfo, roundInfoBool):
 		avgACS = 0
 		for roundIndex in range(0,len(player["RoundInfo"])):
 			if roundInfoBool:
-				print("Round " + str(roundIndex+1))
-				print(player["RoundInfo"][roundIndex]["ImpactDisplay"])
-				print("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
-				print("\n")
+				displayString.append("Round " + str(roundIndex+1))
+				displayString.append(player["RoundInfo"][roundIndex]["ImpactDisplay"])
+				displayString.append("ACS: " + str(player["RoundInfo"][roundIndex]["Score"]))
+				displayString.append("\n")
 			avgKillImpact += player["RoundInfo"][roundIndex]["killImpact"]
 			avgDeathImpact += player["RoundInfo"][roundIndex]["deathImpact"]
 			avgImpact += player["RoundInfo"][roundIndex]["Impact"]
 			avgACS += player["RoundInfo"][roundIndex]["Score"]
 
-		print("Average Kill Impact: " + str(round(avgKillImpact/len(player["RoundInfo"]))))
-		print("Average Death Impact: " + str(round(avgDeathImpact/len(player["RoundInfo"]))))
-		print("Average Impact: " + str(round(avgImpact/len(player["RoundInfo"]))))
-		print("Average ACS: " + str(round(avgACS/len(player["RoundInfo"]))))
-		print("\n\n")
+		displayString.append("Average Kill Impact: " + str(round(avgKillImpact/len(player["RoundInfo"]))))
+		displayString.append("Average Death Impact: " + str(round(avgDeathImpact/len(player["RoundInfo"]))))
+		displayString.append("Average Impact: " + str(round(avgImpact/len(player["RoundInfo"]))))
+		displayString.append("Average ACS: " + str(round(avgACS/len(player["RoundInfo"]))))
+		displayString.append("\n")
 
+		result = "\n".join(displayString)
+		sortedByImpact[str(round(avgImpact/len(player["RoundInfo"])))] = result
+
+	intKeys = []
+	for key in sortedByImpact.keys():
+		intKeys.append(int(key))
+
+	intKeys.sort(reverse=True)
+	for key in intKeys:
+		print(sortedByImpact[str(key)])
 
 def createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, player):
 
