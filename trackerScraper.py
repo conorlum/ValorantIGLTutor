@@ -11,6 +11,7 @@ from pathlib import Path
 import networkx as nx
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
+import re
 
 User = "User" #conor or User 
 resolutionScaling = 1.5 #1.5 when on 4k
@@ -69,11 +70,13 @@ def parseOutRoundCount(filename):
 			if "<body>" in line:
 				nextLine = True
 
-
-	return html.count("text-12 font-medium text-dim")
+	teamARounds = int(html.split("Team A")[1].split("valorant-color-team-1\">")[1].split("<")[0])
+	teamBRounds = int(html.split("Team B")[1].split("valorant-color-team-2\">")[1].split("<")[0])
+	return teamARounds + teamBRounds
 
 def saveAllRounds(filename):
 	roundCountTotal = parseOutRoundCount(filename)
+	print(roundCountTotal)
 	TotalRoundIndex = 1
 	while roundCountTotal > 0:
 		if roundCountTotal >= 20:
@@ -180,7 +183,8 @@ def parseRoundOutcome(filename):
 		# roundOutcomeSplit = roundMarker.split('alt=')[1]
 		# roundOutcomeString = roundOutcomeSplit.split('Win')[0].replace('"', '').strip()
 		# roundOutcomes[str(roundIndex)] = roundOutcomeString
-		roundOutcome = html.split("Win")[0].split("> ")[-1].strip()
+		pattern = r"Team (A|B) (.+?) Win"
+		roundOutcome = re.search(pattern, html).group(0)
 		roundOutcomes[str(roundIndex)] = roundOutcome
 
 	return roundOutcomes
@@ -1060,11 +1064,11 @@ if __name__ == "__main__":
 
 	# saveAllRounds(filename)
 	# cleanUpFiles(filename)
-	# saveHTMLToJson(filename)
+	saveHTMLToJson(filename)
 	
 
 	# print(parseEconPerRound(filename))
-	print(parseRoundOutcome(filename))
+	# print(parseRoundOutcome(filename))
 	# print(parseRoundKillList(filename)["2"])
 	# print(parseRoundKillList(filename)["23"])
 

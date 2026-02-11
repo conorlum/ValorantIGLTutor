@@ -1,0 +1,39 @@
+var Pepto = new TimelineMax;
+
+function init() {
+    main_animation();
+    addHover();
+}
+
+function main_animation() {
+    Pepto.from(whiteFrame, .6, { delay: 0, opacity: 1, ease: Power2.easeOut }, "part1");
+    Pepto.from(bgDrip, 9, { delay: 0, y: -200, scaleX: 1.5, ease: Power1.easeInOut }, "part1");
+
+    Pepto.from(calendar, .75, { delay: .25, x: -300, ease: Power4.easeOut }, "part1");
+    Pepto.from([copy11, copy12, copy13], .25, { delay: .25, y: 20, opacity:0, stagger:.15, ease: Power2.easeOut }, "part1");
+
+    Pepto.to(calendar, .5, { delay: 3, x: 300, ease: Power4.easeIn }, "part1");
+    Pepto.to([logo], .5, { delay: 3, opacity:0, ease: Power2.easeInOut }, "part1");
+    Pepto.to([copy11, copy12, copy13], .25, { delay: 3, y: -20, opacity:0, stagger:.15, ease: Power2.easeIn }, "part1");
+    Pepto.from(glow, .65, { opacity: 0, delay: 3.5, ease: Power2.easeInOut }, "part1");
+    Pepto.from(packshot1, .65, { scale: .9, delay: 3.4, x: -300, ease: Power4.easeOut }, "part1");
+    Pepto.from(packshot2, .65, { scale: .9, delay: 3.5, x: -300, ease: Power4.easeOut }, "part1");
+    Pepto.from([copy21, copy22, copy23, copy24, copy25], .25, { delay: 3.75, y: 20, opacity:0, stagger:.15, ease: Power2.easeOut }, "part1");
+
+    Pepto.to([copy21, copy22, copy23, copy24, copy25], .25, { delay: 7.5, y: -20, opacity:0, stagger:.15, ease: Power2.easeIn }, "part1");
+    Pepto.from([copy31, copy32], .25, { delay: 8.5, y: 20, opacity:0, stagger:.15, ease: Power2.easeOut }, "part1");
+    
+}
+
+function addHover() {
+    document.getElementById('main_wrapper').onmouseover = function () {
+        TweenMax.to('#cta', .25, { scale: 1.15, ease: Power1.easeInOut, overwrite: true });
+        TweenMax.to('.st000', .25, { fill: "#fff", ease: Power1.easeInOut, overwrite: true });
+        TweenMax.to('.st001', .25, { fill: "#00348E", ease: Power1.easeInOut, overwrite: true });
+    };
+    document.getElementById('main_wrapper').onmouseout = function () {
+        TweenMax.to('#cta', .15, { scale: 1, ease: Power1.easeInOut, overwrite: true });
+        TweenMax.to('.st001', .15, { fill: "#f35096", ease: Power1.easeInOut, overwrite: true });
+        TweenMax.to('.st000', .15, { fill: "#fff200", ease: Power1.easeInOut, overwrite: true });
+    };
+}
