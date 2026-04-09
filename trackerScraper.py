@@ -183,7 +183,7 @@ def parseRoundOutcome(filename):
 		# roundOutcomeSplit = roundMarker.split('alt=')[1]
 		# roundOutcomeString = roundOutcomeSplit.split('Win')[0].replace('"', '').strip()
 		# roundOutcomes[str(roundIndex)] = roundOutcomeString
-		pattern = r"Team (A|B) (.+?) Win"
+		pattern = r"Team (A|B) (.{1,20}) Win"
 		roundOutcome = re.search(pattern, html).group(0)
 		roundOutcomes[str(roundIndex)] = roundOutcome
 
@@ -393,6 +393,7 @@ def parsePlayerRoundInfo(filename):
 
 def displayImpact(playersRoundInfo, roundInfoBool):
 	sortedByImpact = {}
+	playerID = 0
 	for username in playersRoundInfo.keys():
 		displayString = []
 		player = playersRoundInfo[username]
@@ -427,7 +428,8 @@ def displayImpact(playersRoundInfo, roundInfoBool):
 		displayString.append("\n")
 
 		result = "\n".join(displayString)
-		sortedByImpact[str(round(avgImpact/len(player["RoundInfo"])))] = result
+		sortedByImpact[str(round(avgImpact/len(player["RoundInfo"]))) + str(playerID)] = result
+		playerID += 1
 
 	intKeys = []
 	for key in sortedByImpact.keys():
@@ -593,23 +595,23 @@ def calculateRoundImpact(playersRoundInfo):
 			killOrderBonusXTimeFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*TimeFactorSum"]
 			deathOrderBonusXTimeFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*TimeFactorSum"]
 
-			killOrderBonusXSwingFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*SwingFactorSum"]
-			deathOrderBonusXSwingFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*SwingFactorSum"]
+			killOrderBonusXEconSwingRiskFactorSum = player["RoundInfo"][roundIndex]["killOrderBonus*EconSwingRiskFactorSum"]
+			deathOrderBonusXEconSwingRiskFactorSum = player["RoundInfo"][roundIndex]["deathOrderBonus*EconSwingRiskFactorSum"]
 
 			killFactorAverage = player["RoundInfo"][roundIndex]["EconomyDifferentialFactorAverage"]
 			if killFactorAverage == 0:
 				killFactorAverage = 1
 			ACS_Scalor = 1.25
 			damages = round(ACS*killFactorAverage*ACS_Scalor)
-			killImpact = round(damages + ((killOrderBonusXEconFactorSum + killOrderBonusXTimeFactorSum + killOrderBonusXSwingFactorSum) / 3))
+			killImpact = round(damages + ((killOrderBonusXEconFactorSum + killOrderBonusXTimeFactorSum + killOrderBonusXEconSwingRiskFactorSum) / 3))
 
-			deathImpact = round((deathOrderBonusXEconFactorSum + deathOrderBonusXTimeFactorSum + deathOrderBonusXSwingFactorSum) / 3)
+			deathImpact = round((deathOrderBonusXEconFactorSum + deathOrderBonusXTimeFactorSum + deathOrderBonusXEconSwingRiskFactorSum) / 3)
 			player["RoundInfo"][roundIndex]["killImpact"] = killImpact
 			player["RoundInfo"][roundIndex]["deathImpact"] = deathImpact
 
 			impact = killImpact - deathImpact
 			player["RoundInfo"][roundIndex]["Impact"] = impact
-			player["RoundInfo"][roundIndex]["ImpactDisplay"] = "Impact: " + str(round(impact)) + "     Breakdown  -->     killImpact: " + str(killImpact) +  "  Damage: " + str(damages) + "   Kill Order: " + str(round(killOrderBonusXEconFactorSum)) + "    Death Order: " + str(round(deathOrderBonusXEconFactorSum)) + "   Econ Factor: " + str(killFactorAverage)
+			player["RoundInfo"][roundIndex]["ImpactDisplay"] = "Impact: " + str(round(impact)) + "     Breakdown  -->     killImpact: " + str(killImpact) +  "  Damage: " + str(damages) + "   Econ Impact: " + str(round(killOrderBonusXEconFactorSum - deathOrderBonusXEconFactorSum)) + "    Time Impact: " + str(round(killOrderBonusXTimeFactorSum - deathOrderBonusXTimeFactorSum)) + "    Swing Round Impact: " + str(round(killOrderBonusXEconSwingRiskFactorSum - deathOrderBonusXEconSwingRiskFactorSum))
 
 	return playersRoundInfo
 
@@ -627,7 +629,7 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 			killFactorAverage = 0
 			killOrderBonusXEconFactorSum = 0
 			killOrderBonusXTimeFactorSum = 0
-			killOrderBonusXSwingFactorSum = 0
+			killOrderBonusXEconSwingRiskFactor = 0
 			killsInRound = 0
 
 			for killLog in roundKillLogs[str(roundIndex+1)]:
@@ -640,13 +642,17 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 						killsInRound += 1
 						killOrderBonusXEconFactorSum += killLog["killOrderBonus*EconFactor"]
 						killOrderBonusXTimeFactorSum += killLog["killOrderBonus*TimeFactor"]
-						killOrderBonusXSwingFactorSum += killLog["killOrderBonus*SwingFactor"]
+						killOrderBonusXEconSwingRiskFactor += killLog["killOrderBonus*EconSwingRiskFactor"]
 
-			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS - 50*(killsInRound - 1)
+			adjustACSForMultikill = 0
+			if killsInRound > 1:
+				adjustACSForMultikill = -50 * killsInRound
+
+			player["RoundInfo"][roundIndex]["Damage+Assists"] = ACS - adjustACSForMultikill
 			player["RoundInfo"][roundIndex]["killOrderBonusSum"] = killOrderBonus
 			player["RoundInfo"][roundIndex]["killOrderBonus*EconFactorSum"] = killOrderBonusXEconFactorSum
 			player["RoundInfo"][roundIndex]["killOrderBonus*TimeFactorSum"] = killOrderBonusXTimeFactorSum
-			player["RoundInfo"][roundIndex]["killOrderBonus*SwingFactorSum"] = killOrderBonusXSwingFactorSum
+			player["RoundInfo"][roundIndex]["killOrderBonus*EconSwingRiskFactorSum"] = killOrderBonusXEconSwingRiskFactor
 
 			
 			if killsInRound == 0:
@@ -656,7 +662,7 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 		for roundIndex in range(0,len(player["RoundInfo"])):
 			deathOrderBonusXEconFactorSum = 0
 			deathOrderBonusXTimeFactorSum = 0
-			deathOrderBonusXSwingFactorSum = 0
+			deathOrderBonusXEconSwingRiskFactor = 0
 
 			for killLog in roundKillLogs[str(roundIndex+1)]:
 				
@@ -664,11 +670,11 @@ def calculateDamageAndAssists_KillOrderSum_KillFactorAverage(playersRoundInfo, r
 					if killLog["deathTeam"] == team and killLog["deathCharacter"] == agent:
 						deathOrderBonusXEconFactorSum += killLog["deathOrderBonus*EconFactor"]
 						deathOrderBonusXTimeFactorSum += killLog["deathOrderBonus*TimeFactor"]
-						deathOrderBonusXSwingFactorSum += killLog["deathOrderBonus*SwingFactor"]
+						deathOrderBonusXEconSwingRiskFactor += killLog["deathOrderBonus*EconSwingRiskFactor"]
 
 			player["RoundInfo"][roundIndex]["deathOrderBonus*EconFactorSum"] = deathOrderBonusXEconFactorSum
 			player["RoundInfo"][roundIndex]["deathOrderBonus*TimeFactorSum"] = deathOrderBonusXTimeFactorSum
-			player["RoundInfo"][roundIndex]["deathOrderBonus*SwingFactorSum"] = deathOrderBonusXSwingFactorSum
+			player["RoundInfo"][roundIndex]["deathOrderBonus*EconSwingRiskFactorSum"] = deathOrderBonusXEconSwingRiskFactor
 
 	return playersRoundInfo
 
@@ -703,12 +709,13 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 		exploded = False
 		defused = False
 
-		team1SwingFactor = calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-1")
-		team2SwingFactor = calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-2")
-		print(roundIndex)
-		print("SwingFactor")
-		print(team1SwingFactor)
-		print(team2SwingFactor)
+		team1EconSwingRiskFactor = calculateEconSwingRiskFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-1")
+		team2EconSwingRiskFactor = calculateEconSwingRiskFactor(playersRoundInfo, roundOutcomes, roundIndex, "team-2")
+		# print("round " + str(roundIndex))
+		# print("SwingFactor")
+		# print(team1EconSwingRiskFactor)
+		# print(team2EconSwingRiskFactor)
+		# print("~~~~~~~~~~~~~~~~~~~~~\n\n")
 
 		for killLogIndex in range(0, len(roundKillLogs[roundIndex])):
 			killLog = roundKillLogs[roundIndex][killLogIndex]
@@ -727,7 +734,7 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 
 				selfKill = checkForSelfKill(killLog)
 
-				swingFactor = team1SwingFactor if killLog["killerTeam"] == "team-2" else team2SwingFactor
+				econSwingRiskFactor = team1EconSwingRiskFactor if killLog["killerTeam"] == "team-2" else team2EconSwingRiskFactor
 
 				killOrderBonus = calculateKillOrderBonus(team1KillIndex, team2KillIndex, killLog["killerTeam"], killsInRound, selfKill)
 
@@ -736,7 +743,7 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 
 				killLog["killOrderBonus*TimeFactor"] = killOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"]) if not selfKill else 0
 				
-				killLog["killOrderBonus*SwingFactor"] = killOrderBonus * swingFactor if not selfKill else 0
+				killLog["killOrderBonus*EconSwingRiskFactor"] = killOrderBonus * econSwingRiskFactor if not selfKill else 0
 
 
 				deathOrderBonus = killOrderBonus * calculateTradedFactor(roundKillLogs[roundIndex], killLog, selfKill)
@@ -755,7 +762,7 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 
 				killLog["deathOrderBonus*EconFactor"] = deathOrderBonus * (deathEconFactor)
 				killLog["deathOrderBonus*TimeFactor"] = deathOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"])
-				killLog["deathOrderBonus*SwingFactor"] = deathOrderBonus * swingFactor
+				killLog["deathOrderBonus*EconSwingRiskFactor"] = deathOrderBonus * econSwingRiskFactor
 
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
 
@@ -802,53 +809,106 @@ def calculateEconBonus(roundOutcomes, roundIndex, team):
 		return 2900
 
 
-def calculateTeamWon(roundOutcomes, roundIndex, team):
+def didTeamWin(roundOutcomes, roundIndex, team):
 	roundOutcome = roundOutcomes[roundIndex]
 	teamOutcome = roundOutcome.split("Team ")[1][0]
 	return (teamOutcome == "A" and team == "team-1") or (teamOutcome == "B" and team == "team-2")
 
 
-def calculateSwingFactor(playersRoundInfo, roundOutcomes, roundIndex, team):
-	econBonus = calculateEconBonus(roundOutcomes, roundIndex, team)
-	if roundIndex == "1" or roundIndex == "13" or roundIndex == "12" or roundIndex == "24":
+def calculateMinNextRoundEconBonus(roundOutcomes, roundIndex, team):
+	lossStreak = roundsSinceLastWin(roundOutcomes, roundIndex, team)
+
+	if lossStreak == 0:
+		return 1900
+	elif lossStreak == 1:
+		return 2400
+	else:
+		return 2900
+
+
+def roundsSinceLastWin(roundOutcomes, roundIndex, team):
+	roundVar = int(roundIndex) - 1
+	lossStreak = 0
+	while roundVar > 0:
+		teamWon = didTeamWin(roundOutcomes, str(roundVar), team)
+		if teamWon:
+			return lossStreak
+
+		lossStreak += 1
+		roundVar -= 1
+
+	return lossStreak
+
+
+def calculateEconSwingRiskFactor(playersRoundInfo, roundOutcomes, roundIndex, team):
+	
+	if roundIndex == "1" or roundIndex == "13":
+		return 1.5
+
+	if roundIndex == "12" or roundIndex == "24":
 		return 1
 
 	if int(roundIndex) > 24:
 		return 1
 
 	loadoutThreshold = 3400
-	if roundIndex == "2" or roundIndex == "14":
-		loadoutThreshold = 2400 
-
-
-
-	teamRemainingCredits = 0
-	lowEconTeammate = 0
-	highEconTeammate = 0
-	deathsInRound = 0
+	vandalCost = 2900
+	econBonus = calculateMinNextRoundEconBonus(roundOutcomes, roundIndex, team)
+	cantBuyNext = 0
+	canBuyNext = 0
+	canBuyIfWin = 0
+	canBuyDouble = 0
+	canBuyIfWinDouble = 0
+	needToBuyNext = 0
 	boughtIn = 0
 	for player in playersRoundInfo.keys():
 		if playersRoundInfo[player]["Team"] == team:
 			remaining = playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Remaining"]
-			teamRemainingCredits += remaining
+			needToBuyNext += 1 if playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Deaths"] > 0 else 0
+			currentLoadout = playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Loadout"]
+			
+			if remaining + econBonus < loadoutThreshold:
+				cantBuyNext += 1
 
-			if remaining + calculateEconBonus(roundOutcomes, roundIndex, team) < 3400 or remaining < 400:
-				lowEconTeammate += 1
+			if remaining + econBonus >= loadoutThreshold:
+				canBuyNext += 1
 
-			if remaining + calculateEconBonus(roundOutcomes, roundIndex, team) > 7000:
-				highEconTeammate += 1
+			if remaining + 3000 >= loadoutThreshold:
+				canBuyIfWin += 1
 
-			if playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Deaths"] > 0:
-				deathsInRound += 1
+			if remaining + econBonus >= (loadoutThreshold + vandalCost):
+				canBuyNext -= 1
+				canBuyDouble += 1
 
-			if playersRoundInfo[player]["RoundInfo"][int(roundIndex)-1]["Loadout"] > loadoutThreshold:
+			if remaining + 3000 >= loadoutThreshold + vandalCost:
+				canBuyIfWin -= 1
+				canBuyIfWinDouble += 1
+
+			if currentLoadout >= loadoutThreshold:
 				boughtIn += 1
 
 
-	if boughtIn >= 4:
-		econImpacts = highEconTeammate - max(lowEconTeammate, deathsInRound)
-		if econImpacts < 0:
-			return 1 + abs(econImpacts) * .2 
+	# print("cant buy: " + str(cantBuyNext))
+	# print("can buy: " + str(canBuyNext))
+	# print("can buy double: " + str(canBuyDouble))
+	# print("can buy if win: " + str(canBuyIfWin))
+	# print("can buy double if win: " + str(canBuyIfWinDouble))
+	# print("\n")
+
+	swingFactor = round((boughtIn + cantBuyNext - canBuyDouble + 3) * .01, 2) 
+	# print("SwingFactor: " + str(swingFactor))
+
+	if canBuyNext + 2*canBuyDouble >= 5: #low risk round
+		lowRisk = .7 - round(((canBuyNext + 2*canBuyDouble) * .05), 2)
+		return round(lowRisk + boughtIn * swingFactor, 1)
+
+	if roundIndex == "2" or roundIndex == "14":
+		swingFactor = .15
+
+		return round(1 + (cantBuyNext  * swingFactor) + ((needToBuyNext - canBuyNext) * .1), 2)
+
+	if canBuyNext + canBuyDouble < 5: #risk round
+		return round(1 + (.67*(boughtIn * swingFactor) + (cantBuyNext * swingFactor)) + ((needToBuyNext - (canBuyIfWin + 2*canBuyIfWinDouble)) * swingFactor), 2)
 
 	return 1
 
@@ -1058,13 +1118,13 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time Ex: <MAP>MMDDYYHHMM\n")
 
-	createMapFolder(filename)
+	# createMapFolder(filename)
 
-	input("save the tracker page as a complete webpage into the newly created folder following the same name")
+	# input("save the tracker page as a complete webpage into the newly created folder following the same name")
 
-	# saveAllRounds(filename)
-	# cleanUpFiles(filename)
-	saveHTMLToJson(filename)
+	# # saveAllRounds(filename)
+	# # cleanUpFiles(filename)
+	# saveHTMLToJson(filename)
 	
 
 	# print(parseEconPerRound(filename))
