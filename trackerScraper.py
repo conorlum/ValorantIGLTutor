@@ -31,19 +31,32 @@ def clickAndSaveRound(roundCount, filenamePrefix):
 	pyautogui.press('s')
 	pyautogui.keyUp('ctrl')
 
-	time.sleep(2)
+	time.sleep(4)
 
 	pyautogui.press('backspace')
-	time.sleep(3)
+	time.sleep(1)
 	filename = filenamePrefix + f"-Round{roundCount}"
 	pyautogui.write(filename)
-	time.sleep(3)
+	time.sleep(1)
+	pyautogui.press("tab")
+	time.sleep(1)
+	pyautogui.press("down", presses=3, interval = .5)
+	time.sleep(1)
+	pyautogui.press('enter')
+	time.sleep(1)
 	pyautogui.press('enter')
 	time.sleep(5)
 
 	while checkFileExists(filenamePrefix, filename) is False:
 		print("waiting")
 		time.sleep(10)
+
+def checkHTMLExists(filenamePrefix, filename):
+	path = f"{baseLocation}{filenamePrefix}_ALL_FILES\\"
+	pattern = os.path.join(path, f"*{filename}.html")
+	print(pattern)
+	print(glob.glob(pattern))
+	return bool(glob.glob(pattern))
 
 def checkFileExists(filenamePrefix, filename):
 	path = f"{baseLocation}{filenamePrefix}_ALL_FILES\\"
@@ -59,19 +72,21 @@ def moveOneRoundOver():
 def parseOutRoundCount(filename):
 	html = ""
 
-	nextLine = False
+	startHTML = False
 	with open(f"{baseLocation}{filename}_ALL_FILES\\{filename}.html", "r", encoding="utf-8") as file:
 		for line in file:
 
-			if nextLine:
-				html = line
-				nextLine = False
+			if startHTML and line.startswith("<script>window.__INITIAL_STATE__"):
 				break
-			if "<body>" in line:
-				nextLine = True
 
-	teamARounds = int(html.split("Team A")[1].split("valorant-color-team-1\">")[1].split("<")[0])
-	teamBRounds = int(html.split("Team B")[1].split("valorant-color-team-2\">")[1].split("<")[0])
+			if startHTML:
+				html += line.rstrip()
+
+			if "<body" in line:
+				startHTML = True
+
+	teamARounds = int(html.split("Team A")[1].split('valorant-color-team-1">')[1].split("<")[0])
+	teamBRounds = int(html.split("Team B")[1].split('valorant-color-team-2">')[1].split("<")[0])
 	return teamARounds + teamBRounds
 
 def saveAllRounds(filename):
@@ -122,17 +137,19 @@ def saveHTMLToJson(filename):
 	for i in range(0, roundCountTotal):
 		roundIndexStr = str(i+1)
 		filePath = f"{baseLocation}{filename}_ALL_FILES\\{filename}-Round{roundIndexStr}.html"
-		with open(filePath, 'r') as file:
-			nextLine = False
+		with open(filePath, 'r', encoding="utf-8") as file:
+			startHTML = False
+			html = ""
 			for line in file:
-
-				if nextLine:
-					html = line
-					nextLine = False
+				if startHTML and line.startswith("<script>window.__INITIAL_STATE__"):
 					break
-				if "<body>" in line:
-					nextLine = True
-			
+
+				if startHTML:
+					html += line.rstrip()
+
+				if "<body" in line:
+					startHTML = True
+
 			roundHTMLJson[str(i+1)] = html
 
 	filePath = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
@@ -178,11 +195,6 @@ def parseRoundOutcome(filename):
 
 	for roundIndex in htmls.keys():
 		html = htmls[str(roundIndex)]
-		# roundMarker = html.split(f"text-12 font-medium text-dim\">{roundIndex}<")[1]
-
-		# roundOutcomeSplit = roundMarker.split('alt=')[1]
-		# roundOutcomeString = roundOutcomeSplit.split('Win')[0].replace('"', '').strip()
-		# roundOutcomes[str(roundIndex)] = roundOutcomeString
 		pattern = r"Team (A|B) (.{1,20}) Win"
 		roundOutcome = re.search(pattern, html).group(0)
 		roundOutcomes[str(roundIndex)] = roundOutcome
@@ -1041,14 +1053,16 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time Ex: <MAP>MMDDYYHHMM\n")
 
+# save game to files::
 	# createMapFolder(filename)
 
 	# input("save the tracker page as a complete webpage into the newly created folder following the same name")
 
-	# # saveAllRounds(filename)
-	# # cleanUpFiles(filename)
+	# saveAllRounds(filename)
+	# cleanUpFiles(filename)
 	# saveHTMLToJson(filename)
 	
+# end
 
 	# print(parseEconPerRound(filename))
 	# print(parseRoundOutcome(filename))

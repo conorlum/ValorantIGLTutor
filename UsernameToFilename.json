@@ -22,19 +22,21 @@
         "Split020826837"
     ],
     "DoubleBl1nd": [
+        "Haven42726656",
         "Split020826837",
         "Sunset11625924"
     ],
     "NPrightdolphin": [
-        "Abyss1017251032",
+        "Bind1026251028",
         "Sunset11625924",
         "Haven101725908",
-        "Split020826837",
-        "Bind1026251028"
+        "Abyss1017251032",
+        "Haven42726656",
+        "Split020826837"
     ],
     "ternstyle": [
-        "Abyss1017251032",
         "Split020826837",
+        "Abyss1017251032",
         "Haven101725908"
     ],
     "ede": [
@@ -62,6 +64,7 @@
     ],
     "Osmin": [
         "Abyss1017251032",
+        "Haven42726656",
         "Haven101725908"
     ],
     "Songoku555": [
@@ -80,8 +83,9 @@
         "Bind1026251028"
     ],
     "Najumi": [
-        "Sunset11625924",
-        "Bind1026251028"
+        "Bind1026251028",
+        "Haven42726656",
+        "Sunset11625924"
     ],
     "yoisho": [
         "Haven101725908",
@@ -120,5 +124,23 @@
     ],
     "Ayzu2VJ": [
         "Sunset11625924"
+    ],
+    "Deemo": [
+        "Haven42726656"
+    ],
+    "lake": [
+        "Haven42726656"
+    ],
+    "XGALX": [
+        "Haven42726656"
+    ],
+    "PRICE": [
+        "Haven42726656"
+    ],
+    "KneeCapElo": [
+        "Haven42726656"
+    ],
+    "Symsys": [
+        "Haven42726656"
     ]
 }

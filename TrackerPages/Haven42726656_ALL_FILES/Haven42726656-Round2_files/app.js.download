@@ -1,0 +1,176 @@
+(function() {
+	'use strict';
+
+	function init() {
+		initPreload();
+		console.log('-- ad init --');
+	}
+
+	function getBrowser() {
+		// desktop browsers as of 2019-10-04
+		var browserslist = [
+			'other',
+			'blink',
+			'chrome',
+			'safari',
+			'opera',
+			'ie',
+			'edge',
+			'firefox'
+		];
+		var browser = 0;
+
+		if ('WebkitAppearance' in document.documentElement.style) {
+			browser = 1; // chrome/safari/opera/edge/firefox
+
+			if (/google/i.test(window.navigator.vendor)) browser = 2;
+			if (/apple/i.test(window.navigator.vendor)) browser = 3;
+			if (!!window.opr && !!window.opr.addons || !!window.opera || / OPR\//.test(window.navigator.userAgent)) browser = 4;
+		}
+
+		if (
+			/*@cc_on!@*/
+			!!document.documentMode) browser = 5; // ie 6-11
+
+		if (browser !== 5 && !!window.StyleMedia) browser = 6;
+		if (typeof InstallTrigger !== 'undefined' || 'MozAppearance' in document.documentElement.style) browser = 7;
+		return browserslist[browser];
+	}
+
+	var browser = getBrowser();
+
+	function es5() {
+		return parseInt('010', 10) === 10 && function () {
+			return !this;
+		}() && !!(Date && Date.prototype && Date.prototype.toISOString); // IE10, FF21, CH23, SF6, OP15, iOS7, AN4.4
+	}
+
+	function domIds(scope) {
+		if (scope === void 0) {
+			scope = document;
+		}
+
+		var all = scope.getElementsByTagName('*');
+		var haveIds = {};
+		var i = all.length;
+
+		while (i--) {
+			if (all[i].id) {
+				var safeId = all[i].id.replace(/-|:|\./g, '_');
+				haveIds[safeId] = all[i];
+			}
+		}
+
+		return haveIds;
+	}
+
+	function animation() {
+		var t1 = gsap.timeline();
+		window.t1 = t1;
+
+		t1.set('#banner', {
+			autoAlpha: 1
+		})
+			.set('#background', {scale: 3})
+			.to('#background', {
+				scale: 1,
+				duration: 3,
+				transformOrigin:'center',
+			})
+			.from('.wrapper', {
+				height: 0,
+				duration: 0.7,
+			}, '<2.5')
+			.from('#cta, #text2', {
+				opacity: 0,
+				ease: 'power2.inOut',
+				stagger: 0.5
+			});
+			
+	}
+
+	function initPreload() {
+		var imgs = document.querySelectorAll('.preload');
+		var imgArray = [];
+
+		for (var i = 0; i < imgs.length; ++i) {
+			imgArray.push(imgs[i]);
+		}
+
+		var loadImages = preloadImages(imgArray, false);
+
+		loadImages.done(function() {
+			console.log('-- assets loaded --');
+
+			var dom = domIds();
+			dom.ad.addEventListener('click', clickHandler);
+
+			es5() ? animation() : dom.backup.classList.add('backup');
+
+			dom.ad.classList.remove('hide');
+			
+		});
+	}
+
+	function clickHandler(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		window.open(window.clickTag || window.clickTAG);
+	}
+
+	function preloadImages(arr) {
+		var newImgs = [];
+		var loadedImgs = 0;
+		var imgLen = 0;
+
+		var postAction = function() {};
+
+		arr = (typeof arr != 'object') ? [arr] : arr;
+		imgLen = arr.length;
+
+		function imageLoadPost() {
+			loadedImgs++;
+			var ratio = loadedImgs / imgLen;
+
+			if (arr[loadedImgs - 1] === null) {
+				log('nothing here');
+			}
+
+			if (loadedImgs == imgLen) {
+				postAction(newImgs);
+
+				for (var j = 0, len = imgLen; j < len; j++) {
+					document.getElementById(arr[j].id).append(newImgs[j]);
+					document.getElementById(arr[j].id).removeAttribute('data-src');
+				}
+			}
+		}
+
+		var img;
+		for (var i = 0, len = imgLen; i < len; i++) {
+			img = new Image();
+			newImgs.push(img);
+
+			img.addEventListener('load', function() {
+				imageLoadPost();
+			});
+
+			img.addEventListener('error', function(e) {
+				console.error('ERR_FILE_NOT_FOUND');
+			});
+
+			if (arr[i].getAttribute('data-src') !== null) {
+				img.src = arr[i].getAttribute('data-src');
+				img.alt = '';
+			}
+		}
+
+		return {
+			done: function(f) {
+				postAction = f || postAction;
+			}
+		};
+	}
+
+	init();
+})();
