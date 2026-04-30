@@ -839,9 +839,7 @@ def calculateTradedFactor(roundKillLog, checkingKillLog, selfKill):
 			if killLog["deathCharacter"] == killerCharacter and killLog["deathTeam"] == killerTeam:
 
 				tradeTime = killLog["eventTime"] - deathTime
-				if tradeTime == 0:
-					tradeTime = .3
-				if tradeTime > 0:
+				if tradeTime >= 0:
 					if tradeTime <= timeToTrade:
 						tradeInTimeFactor = tradeTime / 10 
 						return tradeInTimeFactor

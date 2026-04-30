@@ -19,86 +19,115 @@ def createKillOrderGraph():
 	G.add_weighted_edges_from([
 		("5v5", "4v5", 0),
 		("5v5", "5v4", 0),
+		("5v5", "4v4", 0),
 
 		("4v5", "3v5", 0),
 		("4v5", "4v4", 0),
+		("4v5", "3v4", 0),
 		("5v4", "4v4", 0),
 		("5v4", "5v3", 0),
+		("5v4", "4v3", 0),
 
 		("3v5", "2v5", 0),
 		("3v5", "3v4", 0),
+		("3v5", "2v4", 0),
 		("4v4", "3v4", 0),
 		("4v4", "4v3", 0),
+		("4v4", "3v3", 0),
 		("5v3", "4v3", 0),
 		("5v3", "5v2", 0),
+		("5v3", "4v2", 0),
 
 		("2v5", "1v5", 0),
 		("2v5", "2v4", 0),
+		("2v5", "1v4", 0),
+		("3v4", "2v3", 0),
 		("3v4", "2v4", 0),
 		("3v4", "3v3", 0),
 		("4v3", "3v3", 0),
-		("4v3", "4v2", 0), 
+		("4v3", "4v2", 0),
+		("4v3", "3v2", 0),
 		("5v2", "4v2", 0),
 		("5v2", "5v1", 0),
+		("5v2", "4v1", 0),
 
 		("1v5", "0v5", 0),
 		("1v5", "1v4", 0),
+		("1v5", "0v4", 0),
 		("2v4", "1v4", 0),
 		("2v4", "2v3", 0),
+		("2v4", "1v3", 0),
 		("3v3", "2v3", 0),
 		("3v3", "3v2", 0),
+		("3v3", "2v2", 0),
 		("4v2", "3v2", 0),
 		("4v2", "4v1", 0),
+		("4v2", "3v1", 0),
 		("5v1", "4v1", 0),
 		("5v1", "5v0", 0),
+		("5v1", "4v0", 0),
 
 		("1v4", "0v4", 0),
 		("1v4", "1v3", 0),
+		("1v4", "0v3", 0),
 		("2v3", "1v3", 0),
 		("2v3", "2v2", 0),
+		("2v3", "1v2", 0),
 		("3v2", "2v2", 0),
 		("3v2", "3v1", 0),
+		("3v2", "2v1", 0),
 		("4v1", "3v1", 0),
 		("4v1", "4v0", 0),
+		("4v1", "3v0", 0),
 
 		("1v3", "0v3", 0),
 		("1v3", "1v2", 0),
+		("1v3", "0v2", 0),
 		("2v2", "1v2", 0),
 		("2v2", "2v1", 0),
+		("2v2", "1v1", 0),
 		("3v1", "2v1", 0),
 		("3v1", "3v0", 0),
+		("3v1", "2v0", 0),
 
 		("1v2", "0v2", 0),
 		("1v2", "1v1", 0),
+		("1v2", "0v1", 0),
 		("2v1", "1v1", 0),
 		("2v1", "2v0", 0),
+		("2v1", "1v0", 0),
 
 		("1v1", "0v1", 0),
-		("1v1", "1v0", 0)
+		("1v1", "1v0", 0),
+		("1v1", "0v0", 0)
 	])
 	return G
 
-def diamond_layout(G, layers):
+def diamond_layout(G):
     pos = {}
-    y_gap = 1.0
-    x_gap = 1.0
 
-    node_list = list(G.nodes)
-    idx = 0
+    layers = {}
+    for node in G.nodes():
+        a, b = map(int, node.split("v"))
+        layer = a + b
+        layers.setdefault(layer, []).append((node, a, b))
 
-    for layer_idx, layer_size in enumerate(layers):
-        y = -layer_idx * y_gap
+    sorted_layers = sorted(layers.keys(), reverse=True)
 
-        # center nodes horizontally
-        x_start = - (layer_size - 1) / 2
+    y_gap = 1.5
+    x_gap = 1.2
 
-        for i in range(layer_size):
-            if idx >= len(node_list):
-                break
+    for y_idx, layer in enumerate(sorted_layers):
+        nodes = layers[layer]
 
-            x = x_start + i * x_gap
-            pos[node_list[idx]] = (x, y)
-            idx += 1
+        # sort so left side (low a) → right side (high a)
+        nodes.sort(key=lambda x: x[1])
+
+        for node, a, b in nodes:
+            # KEY CHANGE: center the diagonal
+            x = (a - b) * x_gap / 2
+            y = -y_idx * y_gap
+            pos[node] = (x, y)
 
     return pos
 
@@ -109,44 +138,91 @@ def AddToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
 	team = player["Team"]
 
 	for roundIndex in range(0,len(player["RoundInfo"])):
-
+		traded = False
 		for killLog in roundKillLogs[str(roundIndex+1)]:
+			if not traded:
+				if killLog["Event"] == "Kill":
+					beforeState = None
+					afterState = None
+					selfKill = checkForSelfKill(killLog)
+					
+					if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
+						if checkIfTraded(roundKillLogs[str(roundIndex+1)], killLog, selfKill, 3):
+							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1] - 1)
 
-			if killLog["Event"] == "Kill":
-				beforeState = None
-				afterState = None
-				if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
-					if "1" in team:
-						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-						afterState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1] - 1)
-					else:
-						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
-						afterState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0] - 1)
+							if G.has_edge(beforeState, afterState) and G[beforeState][afterState]["weight"] != 0:
+								G[beforeState][afterState]["weight"] = (G[beforeState][afterState]["weight"][0] + 1,  G[beforeState][afterState]["weight"][1])
+							else:
+								G.add_edge(beforeState, afterState, weight=(1,0))
 
-					if G.has_edge(beforeState, afterState):
-						G[beforeState][afterState]["weight"] += 1
-					else:
-						G.add_edge(beforeState, afterState, weight=1)
+							traded = True
+							continue
+
+						if "1" in team:
+							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+							afterState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1] - 1)
+						else:
+							beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
+							afterState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0] - 1)
+
+						if G.has_edge(beforeState, afterState):
+							if traded:
+								print("uh oh")
+							G[beforeState][afterState]["weight"] += 1
+						else:
+							G.add_edge(beforeState, afterState, weight=1)
 
 
 
-				if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
-					if "1" in team:
-						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-						afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1])
-					else:
-						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
-						afterState = str(killLog["playersOnTeam"][1] - 1) + "v" + str(killLog["playersOnTeam"][0])
+					if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
+						if checkIfTraded(roundKillLogs[str(roundIndex+1)], killLog, selfKill, 3):
+							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1] - 1)
 
-					if G.has_edge(beforeState, afterState):
-						G[beforeState][afterState]["weight"] -= 1
-					else:
-						G.add_edge(beforeState, afterState, weight=1)
+							if G.has_edge(beforeState, afterState) and G[beforeState][afterState]["weight"] != 0:
+								G[beforeState][afterState]["weight"] = (G[beforeState][afterState]["weight"][0],  G[beforeState][afterState]["weight"][1] - 1)
+							else:
+								G.add_edge(beforeState, afterState, weight=(0,-1))
+
+							traded = True
+							continue
+						if "1" in team:
+							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
+							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1])
+						else:
+							beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
+							afterState = str(killLog["playersOnTeam"][1] - 1) + "v" + str(killLog["playersOnTeam"][0])
+
+						if G.has_edge(beforeState, afterState):
+							G[beforeState][afterState]["weight"] -= 1
+						else:
+							G.add_edge(beforeState, afterState, weight=1)
+
+def checkIfTraded(roundKillLog, checkingKillLog, selfKill, timeToTrade):
+
+	if selfKill:
+		return False
+
+	killerCharacter = checkingKillLog["killerCharacter"]
+	killerTeam = checkingKillLog["killerTeam"]
+	deathTime = checkingKillLog["eventTime"]
+
+	for killLog in roundKillLog:
+
+		if killLog["Event"] == "Kill":
+
+			if killLog["deathCharacter"] == killerCharacter and killLog["deathTeam"] == killerTeam:
+
+				tradeTime = killLog["eventTime"] - deathTime
+				if tradeTime >= 0 and tradeTime <= timeToTrade:
+					return True
+
+	return False
 
 
 def displayKillOrderGraph(killOrderGraph):
-	layers = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1]
-	pos = diamond_layout(killOrderGraph, layers)
+	pos = diamond_layout(killOrderGraph)
 
 	plt.figure(figsize=(7,5))
 
