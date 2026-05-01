@@ -19,87 +19,62 @@ def createKillOrderGraph():
 	G.add_weighted_edges_from([
 		("5v5", "4v5", 0),
 		("5v5", "5v4", 0),
-		("5v5", "4v4", 0),
 
 		("4v5", "3v5", 0),
 		("4v5", "4v4", 0),
-		("4v5", "3v4", 0),
 		("5v4", "4v4", 0),
 		("5v4", "5v3", 0),
-		("5v4", "4v3", 0),
 
 		("3v5", "2v5", 0),
 		("3v5", "3v4", 0),
-		("3v5", "2v4", 0),
 		("4v4", "3v4", 0),
 		("4v4", "4v3", 0),
-		("4v4", "3v3", 0),
 		("5v3", "4v3", 0),
 		("5v3", "5v2", 0),
-		("5v3", "4v2", 0),
-
+      
 		("2v5", "1v5", 0),
 		("2v5", "2v4", 0),
-		("2v5", "1v4", 0),
-		("3v4", "2v3", 0),
 		("3v4", "2v4", 0),
 		("3v4", "3v3", 0),
 		("4v3", "3v3", 0),
 		("4v3", "4v2", 0),
-		("4v3", "3v2", 0),
 		("5v2", "4v2", 0),
 		("5v2", "5v1", 0),
-		("5v2", "4v1", 0),
 
 		("1v5", "0v5", 0),
 		("1v5", "1v4", 0),
-		("1v5", "0v4", 0),
 		("2v4", "1v4", 0),
 		("2v4", "2v3", 0),
-		("2v4", "1v3", 0),
 		("3v3", "2v3", 0),
 		("3v3", "3v2", 0),
-		("3v3", "2v2", 0),
 		("4v2", "3v2", 0),
 		("4v2", "4v1", 0),
-		("4v2", "3v1", 0),
 		("5v1", "4v1", 0),
 		("5v1", "5v0", 0),
-		("5v1", "4v0", 0),
 
 		("1v4", "0v4", 0),
 		("1v4", "1v3", 0),
-		("1v4", "0v3", 0),
 		("2v3", "1v3", 0),
 		("2v3", "2v2", 0),
-		("2v3", "1v2", 0),
 		("3v2", "2v2", 0),
 		("3v2", "3v1", 0),
-		("3v2", "2v1", 0),
 		("4v1", "3v1", 0),
 		("4v1", "4v0", 0),
-		("4v1", "3v0", 0),
 
 		("1v3", "0v3", 0),
 		("1v3", "1v2", 0),
-		("1v3", "0v2", 0),
 		("2v2", "1v2", 0),
 		("2v2", "2v1", 0),
-		("2v2", "1v1", 0),
 		("3v1", "2v1", 0),
 		("3v1", "3v0", 0),
-		("3v1", "2v0", 0),
 
 		("1v2", "0v2", 0),
 		("1v2", "1v1", 0),
-		("1v2", "0v1", 0),
 		("2v1", "1v1", 0),
 		("2v1", "2v0", 0),
-		("2v1", "1v0", 0),
 
 		("1v1", "0v1", 0),
 		("1v1", "1v0", 0),
-		("1v1", "0v0", 0)
 	])
 	return G
 
@@ -147,18 +122,6 @@ def AddToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
 					selfKill = checkForSelfKill(killLog)
 					
 					if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
-						if checkIfTraded(roundKillLogs[str(roundIndex+1)], killLog, selfKill, 3):
-							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1] - 1)
-
-							if G.has_edge(beforeState, afterState) and G[beforeState][afterState]["weight"] != 0:
-								G[beforeState][afterState]["weight"] = (G[beforeState][afterState]["weight"][0] + 1,  G[beforeState][afterState]["weight"][1])
-							else:
-								G.add_edge(beforeState, afterState, weight=(1,0))
-
-							traded = True
-							continue
-
 						if "1" in team:
 							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
 							afterState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1] - 1)
@@ -167,8 +130,6 @@ def AddToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
 							afterState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0] - 1)
 
 						if G.has_edge(beforeState, afterState):
-							if traded:
-								print("uh oh")
 							G[beforeState][afterState]["weight"] += 1
 						else:
 							G.add_edge(beforeState, afterState, weight=1)
@@ -176,17 +137,6 @@ def AddToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
 
 
 					if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
-						if checkIfTraded(roundKillLogs[str(roundIndex+1)], killLog, selfKill, 3):
-							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1] - 1)
-
-							if G.has_edge(beforeState, afterState) and G[beforeState][afterState]["weight"] != 0:
-								G[beforeState][afterState]["weight"] = (G[beforeState][afterState]["weight"][0],  G[beforeState][afterState]["weight"][1] - 1)
-							else:
-								G.add_edge(beforeState, afterState, weight=(0,-1))
-
-							traded = True
-							continue
 						if "1" in team:
 							beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
 							afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1])
@@ -198,27 +148,6 @@ def AddToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
 							G[beforeState][afterState]["weight"] -= 1
 						else:
 							G.add_edge(beforeState, afterState, weight=1)
-
-def checkIfTraded(roundKillLog, checkingKillLog, selfKill, timeToTrade):
-
-	if selfKill:
-		return False
-
-	killerCharacter = checkingKillLog["killerCharacter"]
-	killerTeam = checkingKillLog["killerTeam"]
-	deathTime = checkingKillLog["eventTime"]
-
-	for killLog in roundKillLog:
-
-		if killLog["Event"] == "Kill":
-
-			if killLog["deathCharacter"] == killerCharacter and killLog["deathTeam"] == killerTeam:
-
-				tradeTime = killLog["eventTime"] - deathTime
-				if tradeTime >= 0 and tradeTime <= timeToTrade:
-					return True
-
-	return False
 
 
 def displayKillOrderGraph(killOrderGraph):
