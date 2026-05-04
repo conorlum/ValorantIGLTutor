@@ -641,6 +641,7 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
 
 				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
+				killLog["resurrection"] = resurrection
 				if not resurrection:
 					if selfKill:
 						if killLog["killerTeam"] == "team-1":
@@ -665,7 +666,8 @@ def calculateKillOrderPlayersOnTeam(roundKillLogs, playersRoundInfo, roundOutcom
 		team2KillIndex = 5
 		killsInRound = 0
 
-
+		print("round")
+		print(roundIndex)
 		for killLogIndex in range(0, len(roundKillLogs[roundIndex])):
 			killLog = roundKillLogs[roundIndex][killLogIndex]
 
@@ -673,8 +675,10 @@ def calculateKillOrderPlayersOnTeam(roundKillLogs, playersRoundInfo, roundOutcom
 				selfKill = checkForSelfKill(killLog)
 
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
+				print(killLog["playersOnTeam"])
 
 				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
+				killLog["resurrection"] = resurrection
 				if not resurrection:
 					if selfKill:
 						if killLog["killerTeam"] == "team-1":

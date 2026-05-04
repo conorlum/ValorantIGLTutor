@@ -147,15 +147,23 @@ def addtoRoundWinGraph(roundKillLogs, playersRoundInfo, roundOutcomes, player, G
 	for roundIndex in range(0,len(player["RoundInfo"])):
 		playerAlive = True
 		for killLog in roundKillLogs[str(roundIndex+1)]:
-			if killLog["Event"] == "Kill" and killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
-				playerAlive = False
-			if playerAlive:
-				a, b = killLog["playersOnTeam"]
-				gameState = f"{a}v{b}" if "1" in team else f"{b}v{a}"
-				if didTeamWin(roundOutcomes, str(roundIndex + 1), team):
-					G.nodes[gameState]["win"] += 1
-				else:
-					G.nodes[gameState]["loss"] += 1
+			if killLog["Event"] == "Kill" and not killLog["resurrection"]:
+				if playerAlive:
+					a, b = killLog["playersOnTeam"]
+
+					gameState = f"{a}v{b}" if "1" in team else f"{b}v{a}"
+					if didTeamWin(roundOutcomes, str(roundIndex + 1), team):
+						G.nodes[gameState]["win"] += 1
+					else:
+						G.nodes[gameState]["loss"] += 1
+
+				if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
+					playerAlive = False
+				# if gameState == "1v5":
+				# 	print(roundIndex+1)
+				# 	print(team)
+				# 	print(a , b)
+				# 	print(killLog["playersOnTeam"])
 
 
 def addToKillOrderGraph(roundKillLogs, playersRoundInfo, player, G):
@@ -244,7 +252,7 @@ def displayRoundWinGraph(roundWinGraph):
 		total = win + loss
 		win_pct = win / total if total > 0 else 0
 
-		labels[node] = f"{node}\n{win_pct:.1%}"
+		labels[node] = f"{node}\n{win}/{total} ({win_pct:.1%})"
 
 	# Draw labels
 	nx.draw_networkx_labels(roundWinGraph, pos, labels=labels, font_size=12)
@@ -267,11 +275,11 @@ if __name__ == "__main__":
 	roundWinGraph = createRoundWinGraph()
 
 	filenames = getFilenamesForUsername(playerUsername)
-
+	filenames = ["Split020826837"]
 	for filename in filenames:
 		(roundOutcomes, roundKillLogs, playersRoundInfo) = getBasicInfo(filename)
-		addToKillOrderGraph(roundKillLogs, playersRoundInfo, playerUsername, killOrderGraph)
-		# addtoRoundWinGraph(roundKillLogs, playersRoundInfo, roundOutcomes, playerUsername, roundWinGraph)
+		# addToKillOrderGraph(roundKillLogs, playersRoundInfo, playerUsername, killOrderGraph)
+		addtoRoundWinGraph(roundKillLogs, playersRoundInfo, roundOutcomes, playerUsername, roundWinGraph)
 
-	displayKillOrderGraph(killOrderGraph)
-	# displayRoundWinGraph(roundWinGraph)
+	# displayKillOrderGraph(killOrderGraph)
+	displayRoundWinGraph(roundWinGraph)
