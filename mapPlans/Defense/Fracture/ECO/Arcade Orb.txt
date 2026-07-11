@@ -1,7 +1,0 @@
-3 players arcade
-1 player B main
-senti A main
-senti util on drop 
-smoke arcade 
-3 players collect arcade orb and push smoke 
-other players holding angles for info

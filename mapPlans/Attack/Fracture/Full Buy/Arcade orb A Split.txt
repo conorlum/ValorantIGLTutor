@@ -1,8 +1,0 @@
-3 players arcade
-2 players A main
-smoke tower 
-arcade players take arcade orb 
-silent rotate to dish 
-A main players contact into A main
-smoke rope and connector 
-recon A site and exec

@@ -1,6 +1,0 @@
-1 player tower
-2 players B main high low on stairs (good off angle)
-1 player rope 
-1 player A connector
--
-passive play to catch B main push off guard

@@ -1,7 +1,0 @@
-2 players dish
-1 player A connector
-1 player gen
-1 player canteen
-dish players push into northside spawn
-other players hold for contact 
-playing for northside lurk crunching A or B

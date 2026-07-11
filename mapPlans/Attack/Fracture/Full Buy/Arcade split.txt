@@ -1,7 +1,0 @@
-4 players arcade
-1 player B main
-arcade players collect orb 
-2 players take into tower
-2 players push front site
-B main player slow pushes stairs 
-smoke generator and canteen
