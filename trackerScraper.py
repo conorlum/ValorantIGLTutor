@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 import re
 
-User = "User" #conor or User 
-resolutionScaling = 1.5 #1.5 when on 4k
+User = "conor" #conor or User 
+resolutionScaling = 1 #1.5 when on 4k
 baseLocation = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\"
 
 
@@ -31,19 +31,32 @@ def clickAndSaveRound(roundCount, filenamePrefix):
 	pyautogui.press('s')
 	pyautogui.keyUp('ctrl')
 
-	time.sleep(2)
+	time.sleep(4)
 
 	pyautogui.press('backspace')
-	time.sleep(3)
+	time.sleep(1)
 	filename = filenamePrefix + f"-Round{roundCount}"
 	pyautogui.write(filename)
-	time.sleep(3)
+	time.sleep(1)
+	pyautogui.press("tab")
+	time.sleep(1)
+	pyautogui.press("down", presses=3, interval = .5)
+	time.sleep(1)
+	pyautogui.press('enter')
+	time.sleep(1)
 	pyautogui.press('enter')
 	time.sleep(5)
 
 	while checkFileExists(filenamePrefix, filename) is False:
 		print("waiting")
 		time.sleep(10)
+
+def checkHTMLExists(filenamePrefix, filename):
+	path = f"{baseLocation}{filenamePrefix}_ALL_FILES\\"
+	pattern = os.path.join(path, f"*{filename}.html")
+	print(pattern)
+	print(glob.glob(pattern))
+	return bool(glob.glob(pattern))
 
 def checkFileExists(filenamePrefix, filename):
 	path = f"{baseLocation}{filenamePrefix}_ALL_FILES\\"
@@ -59,19 +72,21 @@ def moveOneRoundOver():
 def parseOutRoundCount(filename):
 	html = ""
 
-	nextLine = False
+	startHTML = False
 	with open(f"{baseLocation}{filename}_ALL_FILES\\{filename}.html", "r", encoding="utf-8") as file:
 		for line in file:
 
-			if nextLine:
-				html = line
-				nextLine = False
+			if startHTML and line.startswith("<script>window.__INITIAL_STATE__"):
 				break
-			if "<body>" in line:
-				nextLine = True
 
-	teamARounds = int(html.split("Team A")[1].split("valorant-color-team-1\">")[1].split("<")[0])
-	teamBRounds = int(html.split("Team B")[1].split("valorant-color-team-2\">")[1].split("<")[0])
+			if startHTML:
+				html += line.rstrip()
+
+			if "<body" in line:
+				startHTML = True
+
+	teamARounds = int(html.split("Team A")[1].split('valorant-color-team-1">')[1].split("<")[0])
+	teamBRounds = int(html.split("Team B")[1].split('valorant-color-team-2">')[1].split("<")[0])
 	return teamARounds + teamBRounds
 
 def saveAllRounds(filename):
@@ -122,17 +137,19 @@ def saveHTMLToJson(filename):
 	for i in range(0, roundCountTotal):
 		roundIndexStr = str(i+1)
 		filePath = f"{baseLocation}{filename}_ALL_FILES\\{filename}-Round{roundIndexStr}.html"
-		with open(filePath, 'r') as file:
-			nextLine = False
+		with open(filePath, 'r', encoding="utf-8") as file:
+			startHTML = False
+			html = ""
 			for line in file:
-
-				if nextLine:
-					html = line
-					nextLine = False
+				if startHTML and line.startswith("<script>window.__INITIAL_STATE__"):
 					break
-				if "<body>" in line:
-					nextLine = True
-			
+
+				if startHTML:
+					html += line.rstrip()
+
+				if "<body" in line:
+					startHTML = True
+
 			roundHTMLJson[str(i+1)] = html
 
 	filePath = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerHTMLJsons\\{filename}.json"
@@ -178,11 +195,6 @@ def parseRoundOutcome(filename):
 
 	for roundIndex in htmls.keys():
 		html = htmls[str(roundIndex)]
-		# roundMarker = html.split(f"text-12 font-medium text-dim\">{roundIndex}<")[1]
-
-		# roundOutcomeSplit = roundMarker.split('alt=')[1]
-		# roundOutcomeString = roundOutcomeSplit.split('Win')[0].replace('"', '').strip()
-		# roundOutcomes[str(roundIndex)] = roundOutcomeString
 		pattern = r"Team (A|B) (.{1,20}) Win"
 		roundOutcome = re.search(pattern, html).group(0)
 		roundOutcomes[str(roundIndex)] = roundOutcome
@@ -439,146 +451,8 @@ def displayImpact(playersRoundInfo, roundInfoBool):
 	for key in intKeys:
 		print(sortedByImpact[str(key)])
 
-def createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, player):
-
-	G = nx.DiGraph()
-	G.add_weighted_edges_from([
-		("5v5", "4v5", 0),
-		("5v5", "5v4", 0),
-
-		("4v5", "3v5", 0),
-		("4v5", "4v4", 0),
-		("5v4", "4v4", 0),
-		("5v4", "5v3", 0),
-
-		("3v5", "2v5", 0),
-		("3v5", "3v4", 0),
-		("4v4", "3v4", 0),
-		("4v4", "4v3", 0),
-		("5v3", "4v3", 0),
-		("5v3", "5v2", 0),
-
-		("2v5", "1v5", 0),
-		("2v5", "2v4", 0),
-		("3v4", "2v4", 0),
-		("3v4", "3v3", 0),
-		("4v3", "3v3", 0),
-		("4v3", "4v2", 0), 
-		("5v2", "4v2", 0),
-		("5v2", "5v1", 0),
-
-		("1v5", "0v5", 0),
-		("1v5", "1v4", 0),
-		("2v4", "1v4", 0),
-		("2v4", "2v3", 0),
-		("3v3", "2v3", 0),
-		("3v3", "3v2", 0),
-		("4v2", "3v2", 0),
-		("4v2", "4v1", 0),
-		("5v1", "4v1", 0),
-		("5v1", "5v0", 0),
-
-		("1v4", "0v4", 0),
-		("1v4", "1v3", 0),
-		("2v3", "1v3", 0),
-		("2v3", "2v2", 0),
-		("3v2", "2v2", 0),
-		("3v2", "3v1", 0),
-		("4v1", "3v1", 0),
-		("4v1", "4v0", 0),
-
-		("1v3", "0v3", 0),
-		("1v3", "1v2", 0),
-		("2v2", "1v2", 0),
-		("2v2", "2v1", 0),
-		("3v1", "2v1", 0),
-		("3v1", "3v0", 0),
-
-		("1v2", "0v2", 0),
-		("1v2", "1v1", 0),
-		("2v1", "1v1", 0),
-		("2v1", "2v0", 0),
-
-		("1v1", "0v1", 0),
-		("1v1", "1v0", 0)
-	])
-
-
-	player = playersRoundInfo[player]
-	agent = player["Agent"]
-	team = player["Team"]
-
-	for roundIndex in range(0,len(player["RoundInfo"])):
-
-		for killLog in roundKillLogs[str(roundIndex+1)]:
-
-			if killLog["Event"] == "Kill":
-				beforeState = None
-				afterState = None
-				if killLog["killerCharacter"] == agent and killLog["killerTeam"] == team:
-					if "1" in team:
-						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-						afterState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1] - 1)
-					else:
-						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
-						afterState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0] - 1)
-
-					if G.has_edge(beforeState, afterState):
-						G[beforeState][afterState]["weight"] += 1
-					else:
-						G.add_edge(beforeState, afterState, weight=1)
-
-
-
-				if killLog["deathCharacter"] == agent and killLog["deathTeam"] == team:
-					if "1" in team:
-						beforeState = str(killLog["playersOnTeam"][0]) + "v" + str(killLog["playersOnTeam"][1])
-						afterState = str(killLog["playersOnTeam"][0] - 1) + "v" + str(killLog["playersOnTeam"][1])
-					else:
-						beforeState = str(killLog["playersOnTeam"][1]) + "v" + str(killLog["playersOnTeam"][0])
-						afterState = str(killLog["playersOnTeam"][1] - 1) + "v" + str(killLog["playersOnTeam"][0])
-
-					if G.has_edge(beforeState, afterState):
-						G[beforeState][afterState]["weight"] -= 1
-					else:
-						G.add_edge(beforeState, afterState, weight=1)
-
-
-				# if beforeState and afterState:
-				# 	if G.has_edge(beforeState, afterState):
-				# 		G[beforeState][afterState]["weight"] += 1
-				# 	else:
-				# 		G.add_edge(beforeState, afterState, weight=1)
-
-
-	pos = graphviz_layout(G, prog="dot")
-
-	plt.figure(figsize=(7,5))
-
-	# Draw nodes
-	nx.draw_networkx_nodes(G, pos, node_size=800, node_color="lightblue")
-
-	# Draw edges with arrowheads
-	nx.draw_networkx_edges(
-		G, pos,
-		arrowstyle='-|>',
-		arrowsize=20,
-		width=2
-	)
-
-	# Draw labels on nodes
-	nx.draw_networkx_labels(G, pos, font_size=12)
-
-	# Draw edge labels (weights)
-	edge_labels = nx.get_edge_attributes(G, 'weight')
-	nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=12)
-
-	plt.axis("off")
-	plt.show()
-
 
 def calculateRoundImpact(playersRoundInfo):
-
 
 	for username in playersRoundInfo.keys():
 		player = playersRoundInfo[username]
@@ -767,6 +641,44 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
 
 				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
+				killLog["resurrection"] = resurrection
+				if not resurrection:
+					if selfKill:
+						if killLog["killerTeam"] == "team-1":
+							team2KillIndex -= 1
+						else:
+							team1KillIndex -= 1
+					else:
+						if killLog["killerTeam"] == "team-1":
+							team1KillIndex -= 1
+						else:
+							team2KillIndex -= 1
+
+				killsInRound += 1
+
+	return roundKillLogs
+
+def calculateKillOrderPlayersOnTeam(roundKillLogs, playersRoundInfo, roundOutcomes):
+
+	for roundIndex in roundKillLogs.keys():
+
+		team1KillIndex = 5
+		team2KillIndex = 5
+		killsInRound = 0
+
+		print("round")
+		print(roundIndex)
+		for killLogIndex in range(0, len(roundKillLogs[roundIndex])):
+			killLog = roundKillLogs[roundIndex][killLogIndex]
+
+			if killLog["Event"] == "Kill":
+				selfKill = checkForSelfKill(killLog)
+
+				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
+				print(killLog["playersOnTeam"])
+
+				resurrection = checkForResurrection(killLogIndex, roundKillLogs[roundIndex])
+				killLog["resurrection"] = resurrection
 				if not resurrection:
 					if selfKill:
 						if killLog["killerTeam"] == "team-1":
@@ -931,9 +843,7 @@ def calculateTradedFactor(roundKillLog, checkingKillLog, selfKill):
 			if killLog["deathCharacter"] == killerCharacter and killLog["deathTeam"] == killerTeam:
 
 				tradeTime = killLog["eventTime"] - deathTime
-				if tradeTime == 0:
-					tradeTime = .3
-				if tradeTime > 0:
+				if tradeTime >= 0:
 					if tradeTime <= timeToTrade:
 						tradeInTimeFactor = tradeTime / 10 
 						return tradeInTimeFactor
@@ -1090,11 +1000,29 @@ def calculateEconDifferential(playersRoundInfo, roundKillLogs):
 	return roundKillLogs
 
 
+def updateUsernameToFilenamesJson(playersRoundInfo, filename):
+	with open('UsernameToFilename.json', 'r') as file:
+		data = json.load(file)
+
+	for username in playersRoundInfo.keys():
+		if username in data.keys():
+			data[username].append(filename)
+		else:
+			data[username] = [filename]
+
+		data[username] = list(set(data[username]))
+
+
+	with open('UsernameToFilename.json', 'w') as file:
+		json.dump(data, file, indent=4)
+
 def measureOutgoingImpact(filename):
 
 	htmls = loadHTMLSFromJson(filename)
 
 	playersRoundInfo = parsePlayerRoundInfo(filename)
+
+	updateUsernameToFilenamesJson(playersRoundInfo, filename)
 	# print(playersRoundInfo)
 
 	roundOutcomes = parseRoundOutcome(filename)
@@ -1108,8 +1036,17 @@ def measureOutgoingImpact(filename):
 
 	playersRoundInfo = calculateRoundImpact(playersRoundInfo)
 
-	displayImpact(playersRoundInfo, False)
-	# createAndDisplayKillOrderGraph(roundKillLogs, playersRoundInfo, "NPrightdolphin")
+
+
+	return (roundOutcomes, roundKillLogs, playersRoundInfo)
+
+def getBasicInfo(filename):
+	htmls = loadHTMLSFromJson(filename)
+	playersRoundInfo = parsePlayerRoundInfo(filename)
+	roundOutcomes = parseRoundOutcome(filename)
+	roundKillLogs = parseRoundKillList(filename)
+	roundKillLogs = calculateKillOrderPlayersOnTeam(roundKillLogs, playersRoundInfo, roundOutcomes)
+	return (roundOutcomes, roundKillLogs, playersRoundInfo)
 
 
 if __name__ == "__main__":
@@ -1118,14 +1055,16 @@ if __name__ == "__main__":
 
 	filename = input("Please enter the map followed by date month year and time Ex: <MAP>MMDDYYHHMM\n")
 
+# save game to files::
 	# createMapFolder(filename)
 
 	# input("save the tracker page as a complete webpage into the newly created folder following the same name")
 
-	# # saveAllRounds(filename)
-	# # cleanUpFiles(filename)
+	# saveAllRounds(filename)
+	# cleanUpFiles(filename)
 	# saveHTMLToJson(filename)
 	
+# end
 
 	# print(parseEconPerRound(filename))
 	# print(parseRoundOutcome(filename))
@@ -1135,4 +1074,5 @@ if __name__ == "__main__":
 	# parseTeamPlayers(filename)
 	# print(parsePlayerRoundInfo(filename))
 
-	measureOutgoingImpact(filename)
+	(roundOutcomes, roundKillLogs, playersRoundInfo) = measureOutgoingImpact(filename)
+	displayImpact(playersRoundInfo, False)

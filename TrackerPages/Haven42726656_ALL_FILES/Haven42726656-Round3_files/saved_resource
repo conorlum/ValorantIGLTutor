@@ -1,0 +1,43 @@
+
+var ftGUID_8758939="63522E72D02377";
+var ftConfID_8758939="0";
+var ftParams_8758939="AdobeAMO=ef_id%3DZEmO-QAFrf6G_wAn%3A20260429160307%3Ad%26s_kwcid%3DAC!AZ9vM6Bx9fESc5EY5sK7!Km5n2vwtgw7eEFF4VNUD&ft_custom=9d038198-5000-453f-924c-3b7cf9c706cc_x6a_3.3&ftOBA=1&ft_agentEnv=0&ft_referrer=https%3A%2F%2Fstatic.btloader.com%2FsafeFrame.html%3Fupapi%3Dtrue&gdpr=0&us_privacy=${US_PRIVACY}&ftClick=https://statsf-tm.everesttech.net/stats/1/ct?cpKey=Km5n2vwtgw7eEFF4VNUD&mpKey=WpiBsmLP1kuFd09asZ9s&adKey=AZ9vM6Bx9fESc5EY5sK7&sessId=9d038198-5000-453f-924c-3b7cf9c706cc_x6a_3.3&seller_id=185177&psId=OmqstrbfumIvuAKxQIHE&sId=0&dur=15&date=&auth=&did=ZEmO-QAFrf6G_wAn&didtype=EVEREST_COOKIE_ID&stch_id=ZEmO-QAFrf6G_wAn&conn=wifi&env=site&bi=B10O9uvQwbB8IHhC-y3hlSD3Az08kqR9Li_Tf_6efERRhGmYUFYdRjRcHUP5zPJWXhkcK2UAsjaXJFX3gycisTy1zcixuVt_xLzkiFS-q7bva6Qrl0BuKjUm0vebo3KAKG9ytDKmvl63zMvOUETrQYqc1m_F5WJ_c8ML4u0yvBJR8L3jAWc1otasxP9YKXd2nPF93o4lOsI55LzGORjOwjaT_QH7pvJzZ_Ls2qRXkUPlq346ttri9e2ZK9LYbEJsIAm&PG=F&s=H4sIAAAAAAAAAAE2Acn-yktAxn4NXr9_cH-L5SignfMZuq8XkEeFrcHTk7vO3jBjKx6vtpn6Dn7HPeIzlgGBWtofE_5o_3dDR9uhwW_jBTBKrNeRQ7bjxeHsQBY0PjUZAd1tV4DHqZ9j0sRydvUCrj_WUByXPQmdHpbkhF6-SpCwIvqTneSIcinwbdFvlIarGCC-SXvBLiqpXGX0mx9iOpdLPnCH6NsdsEPD2r7H6suVmLZuPyrMruzN_cbNCNi3kSNtKT0k2ZkbpGf9f5-XF9x0TIgZ3QAWF-QXtaB7MkQVHjEZI1F4CbNAWpEGr47wTKHHasjP4BwREneOod4X-ki_KllGM_L5jOqHpj-bAEwatfrGBwyBnh4FelaCntmcn02aNwYOvFFKJYc7WHF49mrbpJHZ6eyz7TGlVjDgxs-7Pzt7B92GVho2AQAA&redir=&ft_partnerimpid=9d038198-5000-453f-924c-3b7cf9c706cc_x6a_3.3&site_url=tracker.gg&cachebuster=555623.2656063644";
+var ftKeyword_8758939="";
+var ftCustom_8758939="9d038198-5000-453f-924c-3b7cf9c706cc_x6a_3.3";
+var ftSection_8758939="";
+var ftSegment_8758939="";
+var ftSegmentList_8758939=[];
+var ftRuleMatch_8758939="0";
+var ftTimestamp_8758939="1777496957";
+var ftGeoC2_8758939="us";
+var ftGeoState_8758939="ca";
+var ftGeoCity_8758939="san diego";
+var ftISP_8758939="charter communications";
+var ftSpeed_8758939="cable";
+var ftConnType_8758939="wifi";
+var ftDMA_8758939="825";
+var ftLong_8758939="-117.15";
+var ftLat_8758939="32.91";
+var ftPostal_8758939="92126";
+var ftTimeZone_8758939="-700";
+var ftMobileCarrier_8758939="";
+var ftImp8758939 = {};
+ftImp8758939.privacy = "x";
+ftImp8758939.guidAge = "341";
+ftImp8758939.impID = "11CE356A-50D4-D7A8-C56F-79AEBB229E61";
+ftImp8758939.duid = "FT:63522E72D02377";
+
+ftImp8758939.ft_tpplid = "";
+ftImp8758939.ft_c = {};
+ftImp8758939.gdpr = "0";
+ftImp8758939.gdpr_consent = "";
+ftImp8758939.gdpr_pd = "";
+ftImp8758939.oob_consent = "";
+ftImp8758939.gdprStoredConsent = "";
+ftImp8758939.us_privacy = "!!US_PRIVACY!";
+ftImp8758939.gpc = "0";
+
+ftImp8758939.jsAppend = "1";
+var ftCreativeId_8758939 = "5039242";
+(function(){var tag=document.getElementById("ft_servedby_8758939")||function(s){return s[s.length-1]}(document.getElementsByTagName("script")),js=document.createElement("script");js.src="https://ajs-assets.ftstatic.com/ftUtils.js";js.id="ftscript_m8758939";js.setAttribute("name","ftscript_m8758939");tag.parentNode.insertBefore(js,tag)})();window.fTChecker=window.fTChecker||function(id){if(!id)return false;id=""+id;if(window.hasOwnProperty("ftUtils")){window["ft"+id]=Object.assign({},window.ftUtils.common);window["ft"+id].getBannerConfig(id)}else(function(id){window.setTimeout(function(){window.fTChecker(id)},50)})(id)};window.fTChecker("8758939");
+

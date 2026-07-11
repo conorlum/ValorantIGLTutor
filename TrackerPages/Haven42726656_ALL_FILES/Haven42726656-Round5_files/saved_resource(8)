@@ -1,0 +1,43 @@
+
+var ftGUID_8261024="63522E72D02377";
+var ftConfID_8261024="0";
+var ftParams_8261024="ftOBA=1&ft_agentEnv=0&ft_lat=32.9511&ft_long=-117.2241&ft_referrer=tracker.gg%2fvalorant%2fprofile%2friot%2fNPrightdolphin&gdpr=0&ftClick=https://insight.adsrvr.org/track/clk?imp=83464b28-5281-49b6-a1f3-fdb09d893fb6&ag=2mre928&sfe=1c29f22c&sig=8qHh4UTENq06LbCQVcRo_yFKAif_Rru2diIykSc14og.&crid=ta96cxgh&cf=10274608&fq=0&t=1&td_s=tracker.gg&rcats=hhr&mste=&mfld=3&mssi=&mfsi=&sv=sharethrough&uhow=86&agsa=&wp=0.38&rgz=92130&dt=PC&osf=Windows&os=Windows10&br=Chrome&svpid=83fd1714&rlangs=en&mlang=&did=&rcxt=Other&tmpc=21.170000000000016&vrtd=&osi=&osv=&daid=&dnr=0&vpb=&crrelr=&npt=1&cc=3~KLUv_WPYfRZoAgOtDQBTTjdQAsiIqoIEVZW1QVUSCpsidRES5koAFw9M0WHmiwAbwiDARUgBQSNKlAjQKU6c1owTUUYUbfmkZAQS_FHMATZxwLhsd3poublhsXvtoC_bEvpmldcbz6vz93ovqfC1dv_T7lQKjXtPP6j8DXe8BIKMzmSK04VHAAQalIgyfbwQVymzevN2v_s9b8N5HvN4rfPwLOPw_Nu-n_-yFDM2BBkhI0h-bXgOEXtQI8YOJT1SjIiiQAJU70nQ4x2AOgQeF56Jh6yWyi1v5_o1yhUPVviI0mmSENftCpCECVpugj_8I8YHYjWEZDbBvHqYO8yB5aW-MQTq9RcTEHDzT9aP2F1YtfLE9u0Cfjzs3rmBylIeKKaDcVjOk_UG1hi4loiGh0wDeBKtEhZYepX5lKcsc-r5e2GE3QRaEcdKnd9WnO6zhjLTfSEMqmm22WKHxjTWk2FLre3wt232tc0c5C6NfkFxXa1d5wLoN1w9Eo5ja8bvvelTwdJoPeDT8ntmfN5j8pgynbuhzia7Gqvw3fBw0FBwKyx54nVTzvULv5e9rcZCsDuMUzRGnXGkn9S9ICzAV6-SXQ..&dur=1~KLUv_WMFoCgkmgA9BgBTyiWqHNDggAReVEA2LDAZwSeCCyzBPjc-STc7RUnwiaiJh__UDJtuEVPXVOX-pamlV1LEguS1EAUJ-fx0Dlgh4AkKG8_gKZZBb2oiwCQxPAfAXl3Jc5FCWlpy0pKzZYuPpgJS7fRvdZW663bUkFZJId6dw08nnX5fVguKF8h44l0YNKjk1dh48AIlr4Z7gsLWq0ziUTrTVGACDvy2ZFUsexlqSj7KytlfGmDKfLA81AW9YxKfqvDJjsNdsll7E3m1ex-TJzcE&durs=-OSddp&bdc=137&idl=XY30070NMUQgSelO1mopzpf7Gt0qh7t-95NcItgv-mhHAmMAM&mk=Google&mdl=Chrome&testid=b1a%7Cdam%7Ciavc1%20&adpt=st_lsharethrough&fpa=454&pcm=3&ict=Unknown&said=2f9e5575-ec53-4698-a6fd-cd33082300c3&auct=1&tail=1&r=&ft_custom=imp=83464b28-5281-49b6-a1f3-fdb09d893fb6|tdid=ca58c7d5-c198-4cb0-90af-356cdebd6cfe|adg=2mre928|site=tracker.gg|sv=sharethrough|dma=825|adf=160x600&bundle_id=tracker.gg&site_url=tracker.gg%2fvalorant%2fprofile%2friot%2fNPrightdolphin&pub_id=83fd1714&sup_platform=sharethrough&cachebuster=614016.0177472366";
+var ftKeyword_8261024="";
+var ftCustom_8261024="imp=83464b28-5281-49b6-a1f3-fdb09d893fb6|tdid=ca58c7d5-c198-4cb0-90af-356cdebd6cfe|adg=2mre928|site=tracker.gg|sv=sharethrough|dma=825|adf=160x600";
+var ftSection_8261024="";
+var ftSegment_8261024="";
+var ftSegmentList_8261024=[];
+var ftRuleMatch_8261024="0";
+var ftTimestamp_8261024="1777497081";
+var ftGeoC2_8261024="us";
+var ftGeoState_8261024="ca";
+var ftGeoCity_8261024="san diego";
+var ftISP_8261024="charter communications";
+var ftSpeed_8261024="cable";
+var ftConnType_8261024="wifi";
+var ftDMA_8261024="825";
+var ftLong_8261024="-117.22";
+var ftLat_8261024="32.95";
+var ftPostal_8261024="92126";
+var ftTimeZone_8261024="-700";
+var ftMobileCarrier_8261024="";
+var ftImp8261024 = {};
+ftImp8261024.privacy = "x";
+ftImp8261024.guidAge = "341";
+ftImp8261024.impID = "6743C5EF-4448-BE1D-BC06-853E9D4F5297";
+ftImp8261024.duid = "FT:63522E72D02377";
+
+ftImp8261024.ft_tpplid = "";
+ftImp8261024.ft_c = {};
+ftImp8261024.gdpr = "0";
+ftImp8261024.gdpr_consent = "";
+ftImp8261024.gdpr_pd = "";
+ftImp8261024.oob_consent = "";
+ftImp8261024.gdprStoredConsent = "";
+ftImp8261024.us_privacy = "";
+ftImp8261024.gpc = "0";
+
+ftImp8261024.jsAppend = "1";
+var ftCreativeId_8261024 = "6120180";
+(function(){var tag=document.getElementById("ft_servedby_8261024")||function(s){return s[s.length-1]}(document.getElementsByTagName("script")),js=document.createElement("script");js.src="https://ajs-assets.ftstatic.com/ftUtils.js";js.id="ftscript_m8261024";js.setAttribute("name","ftscript_m8261024");tag.parentNode.insertBefore(js,tag)})();window.fTChecker=window.fTChecker||function(id){if(!id)return false;id=""+id;if(window.hasOwnProperty("ftUtils")){window["ft"+id]=Object.assign({},window.ftUtils.common);window["ft"+id].getBannerConfig(id)}else(function(id){window.setTimeout(function(){window.fTChecker(id)},50)})(id)};window.fTChecker("8261024");
+
