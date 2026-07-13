@@ -1,4 +1,3 @@
-import pyautogui
 import time
 import json
 import os
@@ -9,11 +8,9 @@ import glob
 import shutil
 from pathlib import Path
 import networkx as nx
-import matplotlib.pyplot as plt
-from networkx.drawing.nx_pydot import graphviz_layout
 import re
 
-User = "conor" #conor or User 
+User = "User" #conor or User
 resolutionScaling = 1 #1.5 when on 4k
 baseLocation = f"C:\\Users\\{User}\\Documents\\GitHub\\ValorantIGLTutor\\TrackerPages\\"
 
@@ -26,6 +23,7 @@ def createMapFolder(filename):
 	os.makedirs(path, exist_ok=True)
 
 def clickAndSaveRound(roundCount, filenamePrefix):
+	import pyautogui
 	pyautogui.click()
 	pyautogui.keyDown('ctrl')
 	pyautogui.press('s')
@@ -67,6 +65,7 @@ def checkFileExists(filenamePrefix, filename):
 
 
 def moveOneRoundOver():
+	import pyautogui
 	pyautogui.moveRel(64 * resolutionScaling,0)
 
 def parseOutRoundCount(filename):
@@ -635,7 +634,7 @@ def calculateKillOrderBonuses(roundKillLogs, playersRoundInfo, roundOutcomes):
 					deathEconFactor = killLog["EconomyDifferentialFactor"]
 
 				killLog["deathOrderBonus*EconFactor"] = deathOrderBonus * (deathEconFactor)
-				killLog["deathOrderBonus*TimeFactor"] = deathOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"])
+				killLog["deathOrderBonus*TimeFactor"] = deathOrderBonus * calculateTimeFactor(planted, plantedTime, exploded, defused, killLog["eventTime"], forDeath=True)
 				killLog["deathOrderBonus*EconSwingRiskFactor"] = deathOrderBonus * econSwingRiskFactor
 
 				killLog["playersOnTeam"] = (team1KillIndex, team2KillIndex)
@@ -851,15 +850,20 @@ def calculateTradedFactor(roundKillLog, checkingKillLog, selfKill):
 	return 1
 
 
-def calculateTimeFactor(planted, plantedTime, exploded, defused, killTime):
+def calculateTimeFactor(planted, plantedTime, exploded, defused, killTime, forDeath=False):
 	timeFactor = 1
 
 	if exploded or defused:
 		timeFactor = .5
 		return timeFactor
 
-	if killTime >= plantedTime + 38 and killTime <= plantedTime + 45:
-		timeFactor = 1.75
+	if planted and killTime >= plantedTime + 38 and killTime <= plantedTime + 45:
+		# A kill in this window is denying/clutching a near-explosion round, so it's
+		# highly valuable. A death in this window isn't the mirror-image punishment -
+		# the round is basically already decided in the killer's favor by then - so it
+		# gets the same discount as a death after the round has already been decided
+		# (exploded/defused) instead of the kill-side bonus.
+		timeFactor = .5 if forDeath else 1.75
 		return timeFactor
 
 	if planted:

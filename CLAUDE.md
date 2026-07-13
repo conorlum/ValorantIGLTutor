@@ -8,7 +8,31 @@ A single-script pipeline (`trackerScraper.py`) that scrapes Valorant match pages
 
 ## What this hopes to be
 
-A website using the Riot API for valorant matches to pull the same information as the scraping and showing the stats and graphs on the website.  Using the logic behind creating and analyzing the results of the matches show interesting results on the website.  
+A website using the Riot API for valorant matches to pull the same information as the scraping and showing the stats and graphs on the website.  Using the logic behind creating and analyzing the results of the matches show interesting results on the website.
+
+Riot does not grant Valorant match-data API access on a self-serve personal key — production access requires demonstrating a working product first. So `webapp/` (below) is being built against a source-agnostic schema, seeded from `trackerScraper.py`'s scraped output, so the Riot API can be swapped in later as a second data source without touching the schema or the Impact scoring logic once it's ported over.
+
+## `webapp/` — in-progress website rebuild
+
+A separate FastAPI + SQLAlchemy 2.0 + Alembic + Postgres project, independent of the root-level scraping script (`trackerScraper.py` is not being deleted or replaced by this — it stays as the seed-data pipeline until Riot API approval).
+
+- `app/models/` — the canonical, source-agnostic schema: `players`, `matches`/`match_players`, `rounds`/`round_player_stats`, `kill_events`, `impact_scores`. Designed so both the existing scraper output and a future `RiotAPISource` can feed the same tables via pluggable adapters (adapters not yet built).
+- `app/db.py` / `app/config.py` — SQLAlchemy engine/session setup; DB connection comes from `DATABASE_URL` (see `.env.example`), defaulting to the local docker-compose Postgres.
+- `app/main.py` — FastAPI app, currently just a `/health` endpoint that round-trips the DB.
+- `alembic/versions/` — schema migrations; `0001_initial_schema.py` creates all 7 tables.
+- `docker-compose.yml` — local Postgres 16 for development.
+- `render.yaml` — Render blueprint for deployment (Postgres + web service, runs `alembic upgrade head` on build).
+
+### Running the webapp locally
+
+```
+cd webapp
+docker compose up -d                        # start local Postgres
+.\.venv\Scripts\python.exe -m alembic upgrade head   # apply migrations
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+A `.venv` with `requirements.txt` installed already exists in `webapp/`. Copy `.env.example` to `.env` if you need to override `DATABASE_URL`.
 
 ## Running it
 
