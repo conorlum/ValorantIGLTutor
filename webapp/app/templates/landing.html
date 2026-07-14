@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}ValoMaths{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>ValoMaths</h1>
+  <p>Look up a player from the sample match data.</p>
+</div>
+
+<form class="search-box" action="/search" method="get">
+  <input type="text" name="q" placeholder="Name#Tag" value="{{ search_query or '' }}" autofocus>
+  <button type="submit">Search</button>
+</form>
+
+{% if not_found %}
+<p class="not-found">No player named "{{ search_query }}" in the sample data.</p>
+{% endif %}
+
+<p class="demo-notice">
+  This is sample data, not a live Riot lookup.
+  {% if not current_player %}<a href="/login">Log in</a> to preview a personalized view using one of the sample players.{% endif %}
+</p>
+{% endblock %}

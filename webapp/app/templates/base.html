@@ -9,9 +9,17 @@
 </head>
 <body>
   <nav>
-    <a href="/matches">ValoMaths</a>
+    <a href="/">ValoMaths</a>
     &middot; <a href="/matches">Matches</a>
     &middot; <a href="/players">Players</a>
+    <span class="nav-auth">
+      {% if current_player %}
+        Logged in as <a href="/players/{{ current_player.display_name | urlencode }}">{{ current_player.display_name }}</a>
+        &middot; <form action="/logout" method="post" class="inline-form"><button type="submit" class="link-button">Log out</button></form>
+      {% else %}
+        <a href="/login">Log in</a>
+      {% endif %}
+    </span>
   </nav>
   <main>
     {% block content %}{% endblock %}

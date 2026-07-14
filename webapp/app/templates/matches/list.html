@@ -4,6 +4,11 @@
 
 {% block content %}
 <h1>Matches</h1>
+{% if showing_own_matches %}
+<p>Showing matches for <strong>{{ current_player.display_name }}</strong> &middot; <a href="/matches?all=1">view all matches</a></p>
+{% elif current_player %}
+<p>Showing all matches &middot; <a href="/matches">view just yours</a></p>
+{% endif %}
 <table>
   <thead>
     <tr>

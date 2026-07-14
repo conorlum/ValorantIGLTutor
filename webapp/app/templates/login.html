@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Log in - ValoMaths{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Log in</h1>
+  <p>Real Riot Sign-On isn't available yet (needs Riot's production API approval) -- pick a player from the sample data to preview a personalized view in the meantime.</p>
+</div>
+
+<form class="player-picker" action="/login" method="post">
+  <select name="display_name" required>
+    <option value="" disabled selected>Choose a player&hellip;</option>
+    {% for p in players %}
+    <option value="{{ p.display_name }}">{{ p.display_name }} (avg impact {{ p.average_impact | round | int }})</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Log in as this player</button>
+</form>
+{% endblock %}

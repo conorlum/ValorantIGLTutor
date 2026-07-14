@@ -10,6 +10,16 @@ def list_matches(db: Session) -> list[Match]:
     return db.query(Match).order_by(Match.played_at.desc().nullslast(), Match.id.desc()).all()
 
 
+def list_matches_for_player(db: Session, player_id: int) -> list[Match]:
+    return (
+        db.query(Match)
+        .join(MatchPlayer, MatchPlayer.match_id == Match.id)
+        .filter(MatchPlayer.player_id == player_id)
+        .order_by(Match.played_at.desc().nullslast(), Match.id.desc())
+        .all()
+    )
+
+
 def get_match_or_404(db: Session, external_id: str) -> Match:
     match = db.query(Match).filter_by(external_id=external_id).one_or_none()
     if match is None:
