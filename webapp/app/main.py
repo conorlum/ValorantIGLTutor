@@ -1,6 +1,8 @@
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db import get_db
 from app.routers import auth, matches, players
+from app.services.auth import get_current_player
 from app.templates import templates
 
 app = FastAPI(title="ValoMaths")
@@ -20,7 +23,10 @@ app.include_router(players.router)
 
 
 @app.get("/")
-def root(request: Request):
+def root(request: Request, db: Session = Depends(get_db)):
+    current_player = get_current_player(request, db)
+    if current_player is not None:
+        return RedirectResponse(url=f"/players/{quote(current_player.display_name)}")
     return templates.TemplateResponse(request, "landing.html", {})
 
 
