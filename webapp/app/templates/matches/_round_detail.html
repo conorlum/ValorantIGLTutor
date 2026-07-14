@@ -1,0 +1,47 @@
+<h3>Round {{ detail.round_number }} &mdash; {{ detail.outcome or "Unknown" }}</h3>
+<p>
+  {% if detail.planted %}Planted at {{ detail.plant_time }}s{% else %}No plant{% endif %}
+  {% if detail.exploded %} &middot; Exploded{% endif %}
+  {% if detail.defused %} &middot; Defused at {{ detail.defuse_time }}s{% endif %}
+</p>
+
+<table>
+  <thead>
+    <tr><th>Time</th><th>Killer</th><th>Weapon</th><th>Victim</th></tr>
+  </thead>
+  <tbody>
+    {% for kill in detail.kills %}
+    <tr>
+      <td>{{ kill.event_time_seconds }}s</td>
+      <td>
+        {% if kill.killer_display_name %}<a href="/players/{{ kill.killer_display_name | urlencode }}">{{ kill.killer_display_name }}</a>{% else %}?{% endif %}
+        ({{ kill.killer_agent or "?" }})
+      </td>
+      <td>{{ kill.weapon }}</td>
+      <td>
+        {% if kill.death_display_name %}<a href="/players/{{ kill.death_display_name | urlencode }}">{{ kill.death_display_name }}</a>{% else %}?{% endif %}
+        ({{ kill.death_agent or "?" }})
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">No kills this round.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table>
+  <thead>
+    <tr><th>Player</th><th>Agent</th><th>Kill Impact</th><th>Death Impact</th><th>Impact</th></tr>
+  </thead>
+  <tbody>
+    {% for p in detail.player_impacts %}
+    <tr>
+      <td><a href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
+      <td>{{ p.agent }}</td>
+      <td>{{ p.kill_impact | round | int }}</td>
+      <td>{{ p.death_impact | round | int }}</td>
+      <td class="{{ 'impact-positive' if p.impact >= 0 else 'impact-negative' }}">{{ p.impact | round | int }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

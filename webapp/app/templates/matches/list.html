@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Matches - ValoMaths{% endblock %}
+
+{% block content %}
+<h1>Matches</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Map</th>
+      <th>Match</th>
+      <th>Played</th>
+      <th>Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for match in matches %}
+    <tr>
+      <td>{{ match.map_name or "-" }}</td>
+      <td><a href="/matches/{{ match.external_id }}">{{ match.external_id }}</a></td>
+      <td>{{ match.played_at.strftime("%b %d, %Y %I:%M %p") if match.played_at else "-" }}</td>
+      <td>{{ match.team1_rounds_won }} - {{ match.team2_rounds_won }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">No matches yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

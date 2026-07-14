@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Players - ValoMaths{% endblock %}
+
+{% block content %}
+<h1>Players</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Player</th>
+      <th>Matches</th>
+      <th>Avg Impact</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in players %}
+    <tr>
+      <td><a href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
+      <td>{{ p.matches_played }}</td>
+      <td class="{{ 'impact-positive' if p.average_impact >= 0 else 'impact-negative' }}">
+        {{ p.average_impact | round | int }}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No players yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

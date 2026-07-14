@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.player.display_name }} - ValoMaths{% endblock %}
+
+{% block content %}
+<h1>{{ profile.player.display_name }}</h1>
+<p>
+  Overall average Impact:
+  <span class="{{ 'impact-positive' if profile.overall_average_impact >= 0 else 'impact-negative' }}">
+    {{ profile.overall_average_impact | round | int }}
+  </span>
+  across {{ profile.matches | length }} match{{ "es" if profile.matches | length != 1 else "" }}
+</p>
+
+<div class="card">
+  <h2>Impact by match</h2>
+  <canvas id="player-impact-chart" height="100"></canvas>
+</div>
+
+<div class="card">
+  <h2>Agents played</h2>
+  <table>
+    <thead>
+      <tr><th>Agent</th><th>Times played</th></tr>
+    </thead>
+    <tbody>
+      {% for agent, count in profile.agent_counts.most_common() %}
+      <tr>
+        <td>{{ agent }}</td>
+        <td>{{ count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Matches</h2>
+  <table>
+    <thead>
+      <tr><th>Match</th><th>Agent</th><th>Team</th><th>Avg Impact</th></tr>
+    </thead>
+    <tbody>
+      {% for m in profile.matches %}
+      <tr>
+        <td><a href="/matches/{{ m.match.external_id }}">{{ m.match.external_id }}</a></td>
+        <td>{{ m.agent }}</td>
+        <td>{{ m.team }}</td>
+        <td class="{{ 'impact-positive' if m.average_impact >= 0 else 'impact-negative' }}">
+          {{ m.average_impact | round | int }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const chartData = {{ chart_data | tojson }};
+  new Chart(document.getElementById("player-impact-chart"), {
+    type: "line",
+    data: {
+      labels: chartData.labels,
+      datasets: [{ label: "Avg Impact", data: chartData.data, tension: 0.2 }],
+    },
+    options: {
+      responsive: true,
+      scales: { x: { title: { display: true, text: "Match" } } },
+    },
+  });
+</script>
+{% endblock %}

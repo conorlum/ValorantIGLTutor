@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}ValoMaths{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav>
+    <a href="/matches">ValoMaths</a>
+    &middot; <a href="/matches">Matches</a>
+    &middot; <a href="/players">Players</a>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <p>This content is not affiliated with, endorsed, sponsored, or specifically approved by Riot Games, Inc. or Riot Games International B.V.</p>
+  </footer>
+</body>
+</html>

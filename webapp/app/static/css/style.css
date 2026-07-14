@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #14151a;
+  color: #e6e6e6;
+}
+
+nav {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #2a2b32;
+}
+
+nav a {
+  color: #ff4655;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2a2b32;
+}
+
+th {
+  color: #9a9ba3;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+tr.clickable-row {
+  cursor: pointer;
+}
+
+tr.clickable-row:hover {
+  background: #1e1f26;
+}
+
+a {
+  color: #ff4655;
+}
+
+.impact-positive {
+  color: #4ade80;
+}
+
+.impact-negative {
+  color: #f87171;
+}
+
+.card {
+  background: #1a1b21;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+#round-detail:empty::before {
+  content: "Click a round above to see its kill log and Impact breakdown.";
+  color: #9a9ba3;
+}
+
+footer {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 2rem;
+  border-top: 1px solid #2a2b32;
+  color: #6b6c74;
+  font-size: 0.8rem;
+}

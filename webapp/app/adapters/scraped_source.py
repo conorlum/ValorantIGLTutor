@@ -1,5 +1,7 @@
 import re
 import sys
+from datetime import datetime
+from itertools import product
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -19,6 +21,75 @@ _MAP_NAME_RE = re.compile(r"^[A-Za-z]+")
 def _map_name(filename: str) -> str | None:
     match = _MAP_NAME_RE.match(filename)
     return match.group(0) if match else None
+
+
+# Some filenames' digit strings parse to more than one date/day-of-month that
+# both land in valid ranges (e.g. "Jan 16" vs "Nov 6" both fit the same
+# digits). The tracker.gg page for these is gone, so there's no way to
+# recover the real date -- the user gave a best-guess (month, day) to break
+# the tie for each one listed here.
+_AMBIGUOUS_DATE_OVERRIDES: dict[str, tuple[int, int]] = {
+    "Sunset11625924": (11, 6),  # user's best guess; page no longer available to confirm
+}
+
+
+def _parse_played_at(filename: str) -> datetime | None:
+    """Parses the `<Map><MMDDYYHHMM>` filename convention into a datetime.
+
+    Month/day/hour aren't consistently zero-padded when these filenames were
+    typed by hand (e.g. "9" for a 9 o'clock hour, not "09"), so the digit
+    string can be 8-10 characters wide with no fixed field boundaries. Year
+    (2 digits) and minutes (2 digits, always padded) are fixed-width; month,
+    day, and hour each vary 1-2 digits. We brute-force the possible widths and
+    keep the decomposition where every field lands in a valid range -- this
+    is unique in practice since invalid splits tend to produce an out-of-range
+    hour or month.
+
+    This scraped-data quirk is specific to how these filenames were typed by
+    hand -- it has no bearing on a future RiotAPISource, which will carry a
+    real match timestamp from the API.
+
+    Per the user: this dataset's matches are always played in the evening, so
+    the parsed hour (1-12) is treated as PM. Do not carry that assumption
+    into any other data source.
+    """
+    map_name = _map_name(filename)
+    if map_name is None:
+        return None
+    digits = filename[len(map_name) :]
+    if len(digits) < 6:
+        return None
+
+    minute = digits[-2:]
+    head = digits[:-2]
+
+    candidates = []
+    for mm_width, dd_width, hh_width in product((1, 2), repeat=3):
+        if mm_width + dd_width + 2 + hh_width != len(head):
+            continue
+        month_str = head[:mm_width]
+        day_str = head[mm_width : mm_width + dd_width]
+        year_str = head[mm_width + dd_width : mm_width + dd_width + 2]
+        hour_str = head[mm_width + dd_width + 2 :]
+
+        month, day, year, hour = int(month_str), int(day_str), int(year_str), int(hour_str)
+        if not (1 <= month <= 12 and 1 <= day <= 31 and 1 <= hour <= 12):
+            continue
+        candidates.append((month, day, year, hour, int(minute)))
+
+    if len(candidates) != 1:
+        override = _AMBIGUOUS_DATE_OVERRIDES.get(filename)
+        if override is not None:
+            candidates = [c for c in candidates if (c[0], c[1]) == override]
+        if len(candidates) != 1:
+            return None
+
+    month, day, year, hour, minute_value = candidates[0]
+    hour_24 = hour if hour == 12 else hour + 12  # assume PM -- see docstring
+    try:
+        return datetime(2000 + year, month, day, hour_24, minute_value)
+    except ValueError:
+        return None
 
 
 def _team_from_outcome_letter(letter: str) -> Team:
@@ -62,7 +133,7 @@ def load_match(db: Session, filename: str) -> Match:
         external_id=filename,
         source=MatchSource.SCRAPED,
         map_name=_map_name(filename),
-        played_at=None,
+        played_at=_parse_played_at(filename),
         team1_rounds_won=team1_wins,
         team2_rounds_won=team2_wins,
     )

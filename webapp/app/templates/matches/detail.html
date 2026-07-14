@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}{{ match.external_id }} - ValoMaths{% endblock %}
+
+{% block content %}
+<h1>{{ match.map_name or match.external_id }}</h1>
+<p>
+  {{ match.external_id }} &middot; {{ match.team1_rounds_won }} - {{ match.team2_rounds_won }}
+  {% if match.played_at %} &middot; {{ match.played_at.strftime("%b %d, %Y %I:%M %p") }}{% endif %}
+</p>
+
+<div class="card">
+  <h2>Average Impact</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Player</th>
+        <th>Agent</th>
+        <th>Team</th>
+        <th>Avg Impact</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in summary.players %}
+      <tr>
+        <td><a href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
+        <td>{{ p.agent }}</td>
+        <td>{{ p.team }}</td>
+        <td class="{{ 'impact-positive' if p.average_impact >= 0 else 'impact-negative' }}">
+          {{ p.average_impact | round | int }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Impact per round</h2>
+  <canvas id="impact-chart" height="100"></canvas>
+</div>
+
+<div class="card">
+  <h2>Rounds</h2>
+  <table>
+    <thead>
+      <tr><th>Round</th><th>Outcome</th></tr>
+    </thead>
+    <tbody>
+      {% for round_number in summary.round_numbers %}
+      <tr class="clickable-row"
+          hx-get="/matches/{{ match.external_id }}/rounds/{{ round_number }}"
+          hx-target="#round-detail"
+          hx-swap="innerHTML">
+        <td>{{ round_number }}</td>
+        <td>{{ summary.round_outcomes.get(round_number) or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Round detail</h2>
+  <div id="round-detail"></div>
+</div>
+
+<script>
+  const chartData = {{ chart_data | tojson }};
+  new Chart(document.getElementById("impact-chart"), {
+    type: "line",
+    data: {
+      labels: chartData.labels,
+      datasets: chartData.series.map((s) => ({
+        label: s.label,
+        data: s.data,
+        tension: 0.2,
+      })),
+    },
+    options: {
+      responsive: true,
+      scales: { x: { title: { display: true, text: "Round" } } },
+    },
+  });
+</script>
+{% endblock %}
