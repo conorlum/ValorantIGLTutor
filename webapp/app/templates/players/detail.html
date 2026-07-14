@@ -4,30 +4,68 @@
 
 {% block content %}
 <h1>{{ profile.player.display_name }}</h1>
-<p>
-  Overall average Impact:
-  <span class="{{ 'impact-positive' if profile.overall_average_impact >= 0 else 'impact-negative' }}">
-    {{ profile.overall_average_impact | round | int }}
-  </span>
-  across {{ profile.matches | length }} match{{ "es" if profile.matches | length != 1 else "" }}
-</p>
+
+{% set top_agent = profile.agent_counts.most_common(1) %}
+<div class="stat-grid">
+  <div class="stat-tile">
+    <div class="stat-label">Overall avg impact</div>
+    <div class="stat-value {{ 'impact-positive' if profile.overall_average_impact >= 0 else 'impact-negative' }}">
+      {{ profile.overall_average_impact | round | int }}
+    </div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Matches played</div>
+    <div class="stat-value">{{ profile.matches | length }}</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Most played agent</div>
+    {% if top_agent %}
+    {% set top_agent_icon = agent_icon_slug(top_agent[0][0]) %}
+    <div class="stat-value">
+      {% if top_agent_icon %}
+      <img class="agent-icon" src="/static/img/agents/{{ top_agent_icon }}.png" alt="{{ top_agent[0][0] }}" title="{{ top_agent[0][0] }}">
+      {% else %}
+      {{ top_agent[0][0] }}
+      {% endif %}
+    </div>
+    <div class="stat-sub">{{ top_agent[0][1] }} time{{ "s" if top_agent[0][1] != 1 else "" }}</div>
+    {% else %}
+    <div class="stat-value">&ndash;</div>
+    {% endif %}
+  </div>
+</div>
 
 <div class="card">
-  <h2>Impact by match</h2>
-  <canvas id="player-impact-chart" height="100"></canvas>
+  <h2>Kill impact vs. death impact by match</h2>
+  <canvas id="player-impact-chart" height="90"></canvas>
 </div>
 
 <div class="card">
   <h2>Agents played</h2>
+  {% set max_count = profile.agent_counts.most_common(1)[0][1] if profile.agent_counts else 0 %}
   <table>
     <thead>
       <tr><th>Agent</th><th>Times played</th></tr>
     </thead>
     <tbody>
       {% for agent, count in profile.agent_counts.most_common() %}
+      {% set icon = agent_icon_slug(agent) %}
       <tr>
-        <td>{{ agent }}</td>
-        <td>{{ count }}</td>
+        <td>
+          {% if icon %}
+          <img class="agent-icon" src="/static/img/agents/{{ icon }}.png" alt="{{ agent }}" title="{{ agent }}">
+          {% else %}
+          {{ agent }}
+          {% endif %}
+        </td>
+        <td>
+          <div class="meter-cell">
+            <span class="meter-value">{{ count }}</span>
+            <div class="meter-track">
+              <div class="meter-fill" style="width: {{ (count / max_count * 100) if max_count else 0 }}%"></div>
+            </div>
+          </div>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -38,14 +76,20 @@
   <h2>Matches</h2>
   <table>
     <thead>
-      <tr><th>Match</th><th>Agent</th><th>Team</th><th>Avg Impact</th></tr>
+      <tr><th>Match</th><th>Agent</th><th>Avg Impact</th></tr>
     </thead>
     <tbody>
       {% for m in profile.matches %}
+      {% set icon = agent_icon_slug(m.agent) %}
       <tr>
-        <td><a href="/matches/{{ m.match.external_id }}">{{ m.match.external_id }}</a></td>
-        <td>{{ m.agent }}</td>
-        <td>{{ m.team }}</td>
+        <td><a href="/matches/{{ m.match.external_id }}">{{ match_label(m.match) }}</a></td>
+        <td>
+          {% if icon %}
+          <img class="agent-icon" src="/static/img/agents/{{ icon }}.png" alt="{{ m.agent }}" title="{{ m.agent }}">
+          {% else %}
+          {{ m.agent }}
+          {% endif %}
+        </td>
         <td class="{{ 'impact-positive' if m.average_impact >= 0 else 'impact-negative' }}">
           {{ m.average_impact | round | int }}
         </td>
@@ -57,15 +101,90 @@
 
 <script>
   const chartData = {{ chart_data | tojson }};
+
+  // Overlay kill/death impact in the same slot per match, both anchored at 0. Chart.js's
+  // multi-dataset bar overlap options (`grouped: false`) don't reliably layer a second bar
+  // dataset on top of the first, so death impact is instead painted directly onto the
+  // canvas after Chart.js finishes drawing the (real) kill-impact bars, using the exact
+  // x position/width Chart.js already computed for each bar.
+  const deathOverlayPlugin = {
+    id: "deathOverlay",
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const yScale = chart.scales.y;
+      const zeroY = yScale.getPixelForValue(0);
+
+      ctx.save();
+      ctx.fillStyle = "#e0554f";
+      meta.data.forEach((bar, i) => {
+        const value = chartData.death_impact[i];
+        if (value == null) return;
+        const top = yScale.getPixelForValue(value);
+        const left = bar.x - bar.width / 2;
+        const height = zeroY - top;
+        ctx.beginPath();
+        ctx.roundRect(left, top, bar.width, height, 3);
+        ctx.fill();
+      });
+      ctx.restore();
+    },
+  };
+
   new Chart(document.getElementById("player-impact-chart"), {
-    type: "line",
+    type: "bar",
     data: {
       labels: chartData.labels,
-      datasets: [{ label: "Avg Impact", data: chartData.data, tension: 0.2 }],
+      datasets: [
+        {
+          label: "Avg Kill Impact",
+          data: chartData.kill_impact,
+          backgroundColor: "#0ca30c",
+          borderRadius: 3,
+          borderSkipped: false,
+          barPercentage: 0.7,
+          categoryPercentage: 0.6,
+        },
+      ],
     },
+    plugins: [deathOverlayPlugin],
     options: {
       responsive: true,
-      scales: { x: { title: { display: true, text: "Match" } } },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            color: "#c3c2b7",
+            usePointStyle: true,
+            boxWidth: 8,
+            generateLabels: () => [
+              { text: "Avg Kill Impact", fillStyle: "#0ca30c", strokeStyle: "#0ca30c", pointStyle: "circle", fontColor: "#c3c2b7", color: "#c3c2b7" },
+              { text: "Avg Death Impact", fillStyle: "#e0554f", strokeStyle: "#e0554f", pointStyle: "circle", fontColor: "#c3c2b7", color: "#c3c2b7" },
+            ],
+          },
+        },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const i = items[0].dataIndex;
+              return `Avg Death Impact: ${Math.round(chartData.death_impact[i])}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Match", color: "#898781" },
+          ticks: { color: "#898781" },
+          grid: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#898781" },
+          grid: { color: "#2c2c2a" },
+        },
+      },
     },
   });
 </script>

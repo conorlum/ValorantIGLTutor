@@ -4,29 +4,40 @@
 
 {% block content %}
 <h1>{{ match.map_name or match.external_id }}</h1>
-<p>
-  {{ match.external_id }} &middot; {{ match.team1_rounds_won }} - {{ match.team2_rounds_won }}
-  {% if match.played_at %} &middot; {{ match.played_at.strftime("%b %d, %Y %I:%M %p") }}{% endif %}
+<p class="page-meta">
+  <span class="badge badge-score">{{ match.team1_rounds_won }} &ndash; {{ match.team2_rounds_won }}</span>
+  <span class="sep">&middot;</span>
+  {{ match.external_id }}
+  {% if match.played_at %}<span class="sep">&middot;</span> {{ match.played_at.strftime("%b %d, %Y %I:%M %p") }}{% endif %}
 </p>
 
 <div class="card">
-  <h2>Average Impact</h2>
+  <h2>Average impact</h2>
   <table>
     <thead>
       <tr>
-        <th>Player</th>
-        <th>Agent</th>
-        <th>Team</th>
-        <th>Avg Impact</th>
+        <th data-sort="string">Player</th>
+        <th data-sort="string">Agent</th>
+        <th data-sort="number">Avg Kill Impact</th>
+        <th data-sort="number">Avg Death Impact</th>
+        <th data-sort="number" aria-sort="descending">Avg Impact</th>
       </tr>
     </thead>
     <tbody>
       {% for p in summary.players %}
-      <tr>
-        <td><a href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
-        <td>{{ p.agent }}</td>
-        <td>{{ p.team }}</td>
-        <td class="{{ 'impact-positive' if p.average_impact >= 0 else 'impact-negative' }}">
+      {% set icon = agent_icon_slug(p.agent) %}
+      <tr class="row-{{ p.team }}">
+        <td><a class="player-link" href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
+        <td data-sort-value="{{ p.agent }}">
+          {% if icon %}
+          <img class="agent-icon" src="/static/img/agents/{{ icon }}.png" alt="{{ p.agent }}" title="{{ p.agent }}">
+          {% else %}
+          {{ p.agent }}
+          {% endif %}
+        </td>
+        <td data-sort-value="{{ p.average_kill_impact }}">{{ p.average_kill_impact | round | int }}</td>
+        <td data-sort-value="{{ p.average_death_impact }}">{{ p.average_death_impact | round | int }}</td>
+        <td data-sort-value="{{ p.average_impact }}" class="{{ 'impact-positive' if p.average_impact >= 0 else 'impact-negative' }}">
           {{ p.average_impact | round | int }}
         </td>
       </tr>
@@ -37,7 +48,11 @@
 
 <div class="card">
   <h2>Impact per round</h2>
-  <canvas id="impact-chart" height="100"></canvas>
+  <div class="chart-scroll">
+    <div id="impact-chart-sizer">
+      <canvas id="impact-chart" height="90"></canvas>
+    </div>
+  </div>
 </div>
 
 <div class="card">
@@ -48,12 +63,19 @@
     </thead>
     <tbody>
       {% for round_number in summary.round_numbers %}
+      {% set outcome = summary.round_outcomes.get(round_number) %}
       <tr class="clickable-row"
           hx-get="/matches/{{ match.external_id }}/rounds/{{ round_number }}"
           hx-target="#round-detail"
           hx-swap="innerHTML">
         <td>{{ round_number }}</td>
-        <td>{{ summary.round_outcomes.get(round_number) or "-" }}</td>
+        <td>
+          {% if outcome %}
+          <span class="badge badge-{{ 'team-1' if outcome.startswith('Team A') else 'team-2' if outcome.startswith('Team B') else 'score' }}">{{ outcome }}</span>
+          {% else %}
+          &ndash;
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -67,19 +89,49 @@
 
 <script>
   const chartData = {{ chart_data | tojson }};
+  const CATEGORICAL = ["#3987e5", "#199e70", "#c98500", "#008300", "#9085e9", "#e66767", "#d55181", "#d95926"];
+
+  // Size the chart so ~10 rounds fill the visible area, with the rest reachable by
+  // horizontal scroll instead of squeezing every round into the card's fixed width.
+  const impactChartSizer = document.getElementById("impact-chart-sizer");
+  const pxPerRound = 100;
+  impactChartSizer.style.width = Math.max(chartData.labels.length * pxPerRound, 300) + "px";
+  impactChartSizer.style.height = "320px";
+
   new Chart(document.getElementById("impact-chart"), {
-    type: "line",
+    type: "bar",
     data: {
       labels: chartData.labels,
-      datasets: chartData.series.map((s) => ({
+      datasets: chartData.series.map((s, i) => ({
         label: s.label,
         data: s.data,
-        tension: 0.2,
+        backgroundColor: CATEGORICAL[i % CATEGORICAL.length],
+        borderRadius: 2,
+        borderSkipped: false,
       })),
     },
     options: {
       responsive: true,
-      scales: { x: { title: { display: true, text: "Round" } } },
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#c3c2b7", usePointStyle: true, boxWidth: 8 },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Round", color: "#898781" },
+          ticks: { color: "#898781" },
+          grid: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#898781" },
+          grid: { color: "#2c2c2a" },
+        },
+      },
     },
   });
 </script>

@@ -20,7 +20,8 @@ def player_detail(request: Request, display_name: str, db: Session = Depends(get
     profile = get_player_profile(db, player)
     chart_data = {
         "labels": [m.match.external_id for m in profile.matches],
-        "data": [m.average_impact for m in profile.matches],
+        "kill_impact": [m.average_kill_impact for m in profile.matches],
+        "death_impact": [m.average_death_impact for m in profile.matches],
     }
     return templates.TemplateResponse(
         request, "players/detail.html", {"profile": profile, "chart_data": chart_data}

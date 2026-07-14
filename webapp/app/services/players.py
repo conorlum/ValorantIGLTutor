@@ -65,6 +65,8 @@ class MatchBreakdown:
     agent: str
     team: str
     average_impact: float
+    average_kill_impact: float
+    average_death_impact: float
 
 
 @dataclass
@@ -89,12 +91,13 @@ def get_player_profile(db: Session, player: Player) -> PlayerProfile:
     agent_counts: Counter = Counter()
 
     for match_player in match_players:
-        impacts = [
-            score.impact
-            for score in db.query(ImpactScore).filter_by(match_player_id=match_player.id).all()
-        ]
-        if not impacts:
+        scores = db.query(ImpactScore).filter_by(match_player_id=match_player.id).all()
+        if not scores:
             continue
+
+        impacts = [score.impact for score in scores]
+        kill_impacts = [score.kill_impact for score in scores]
+        death_impacts = [score.death_impact for score in scores]
 
         match = db.get(Match, match_player.match_id)
         matches.append(
@@ -103,6 +106,8 @@ def get_player_profile(db: Session, player: Player) -> PlayerProfile:
                 agent=match_player.agent,
                 team=match_player.team.value if hasattr(match_player.team, "value") else match_player.team,
                 average_impact=sum(impacts) / len(impacts),
+                average_kill_impact=sum(kill_impacts) / len(kill_impacts),
+                average_death_impact=sum(death_impacts) / len(death_impacts),
             )
         )
         all_impacts.extend(impacts)

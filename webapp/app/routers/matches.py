@@ -42,9 +42,10 @@ def match_detail(request: Request, external_id: str, db: Session = Depends(get_d
         "series": [
             {
                 "label": f"{p.display_name} ({p.agent})",
+                "team": p.team,
                 "data": [p.impact_by_round.get(r) for r in summary.round_numbers],
             }
-            for p in summary.players
+            for p in sorted(summary.players, key=lambda p: p.team)
         ],
     }
     return templates.TemplateResponse(

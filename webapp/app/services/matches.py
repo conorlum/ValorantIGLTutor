@@ -34,7 +34,11 @@ class PlayerSummary:
     agent: str
     team: str
     average_impact: float
+    average_kill_impact: float
+    average_death_impact: float
     impact_by_round: dict[int, float]
+    kill_impact_by_round: dict[int, float]
+    death_impact_by_round: dict[int, float]
 
 
 @dataclass
@@ -53,6 +57,8 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
             MatchPlayer.team,
             Round.round_number,
             ImpactScore.impact,
+            ImpactScore.kill_impact,
+            ImpactScore.death_impact,
         )
         .join(Player, Player.id == MatchPlayer.player_id)
         .join(ImpactScore, ImpactScore.match_player_id == MatchPlayer.id)
@@ -65,7 +71,7 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
     by_player: dict[int, PlayerSummary] = {}
     round_numbers: set[int] = set()
 
-    for match_player_id, display_name, agent, team, round_number, impact in rows:
+    for match_player_id, display_name, agent, team, round_number, impact, kill_impact, death_impact in rows:
         round_numbers.add(round_number)
         summary = by_player.get(match_player_id)
         if summary is None:
@@ -75,14 +81,24 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
                 agent=agent,
                 team=team.value if hasattr(team, "value") else team,
                 average_impact=0.0,
+                average_kill_impact=0.0,
+                average_death_impact=0.0,
                 impact_by_round={},
+                kill_impact_by_round={},
+                death_impact_by_round={},
             )
             by_player[match_player_id] = summary
         summary.impact_by_round[round_number] = impact
+        summary.kill_impact_by_round[round_number] = kill_impact
+        summary.death_impact_by_round[round_number] = death_impact
 
     for summary in by_player.values():
         values = summary.impact_by_round.values()
         summary.average_impact = sum(values) / len(values) if values else 0.0
+        kill_values = summary.kill_impact_by_round.values()
+        summary.average_kill_impact = sum(kill_values) / len(kill_values) if kill_values else 0.0
+        death_values = summary.death_impact_by_round.values()
+        summary.average_death_impact = sum(death_values) / len(death_values) if death_values else 0.0
 
     players = sorted(by_player.values(), key=lambda p: p.average_impact, reverse=True)
     round_outcomes = {

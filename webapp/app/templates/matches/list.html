@@ -5,30 +5,28 @@
 {% block content %}
 <h1>Matches</h1>
 {% if showing_own_matches %}
-<p>Showing matches for <strong>{{ current_player.display_name }}</strong> &middot; <a href="/matches?all=1">view all matches</a></p>
+<p class="page-meta">Showing matches for <strong>{{ current_player.display_name }}</strong> <span class="sep">&middot;</span> <a href="/matches?all=1">view all matches</a></p>
 {% elif current_player %}
-<p>Showing all matches &middot; <a href="/matches">view just yours</a></p>
+<p class="page-meta">Showing all matches <span class="sep">&middot;</span> <a href="/matches">view just yours</a></p>
 {% endif %}
+<div class="card">
 <table>
   <thead>
     <tr>
-      <th>Map</th>
       <th>Match</th>
-      <th>Played</th>
       <th>Score</th>
     </tr>
   </thead>
   <tbody>
     {% for match in matches %}
-    <tr>
-      <td>{{ match.map_name or "-" }}</td>
-      <td><a href="/matches/{{ match.external_id }}">{{ match.external_id }}</a></td>
-      <td>{{ match.played_at.strftime("%b %d, %Y %I:%M %p") if match.played_at else "-" }}</td>
-      <td>{{ match.team1_rounds_won }} - {{ match.team2_rounds_won }}</td>
+    <tr class="clickable-row" onclick="window.location='/matches/{{ match.external_id }}'">
+      <td><a href="/matches/{{ match.external_id }}">{{ match_label(match) }}</a></td>
+      <td><span class="badge badge-score">{{ match.team1_rounds_won }} &ndash; {{ match.team2_rounds_won }}</span></td>
     </tr>
     {% else %}
-    <tr><td colspan="4">No matches yet.</td></tr>
+    <tr><td colspan="2">No matches yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

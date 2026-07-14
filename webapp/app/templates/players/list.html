@@ -4,6 +4,7 @@
 
 {% block content %}
 <h1>Players</h1>
+<div class="card">
 <table>
   <thead>
     <tr>
@@ -14,7 +15,7 @@
   </thead>
   <tbody>
     {% for p in players %}
-    <tr>
+    <tr class="clickable-row" onclick="window.location='/players/{{ p.display_name | urlencode }}'">
       <td><a href="/players/{{ p.display_name | urlencode }}">{{ p.display_name }}</a></td>
       <td>{{ p.matches_played }}</td>
       <td class="{{ 'impact-positive' if p.average_impact >= 0 else 'impact-negative' }}">
@@ -26,4 +27,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}
