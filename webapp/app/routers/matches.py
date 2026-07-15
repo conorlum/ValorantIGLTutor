@@ -10,6 +10,7 @@ from app.services.matches import (
     list_matches,
     list_matches_for_player,
 )
+from app.services.player_graphs import build_match_round_win_diagrams
 from app.templates import templates
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -48,10 +49,17 @@ def match_detail(request: Request, external_id: str, db: Session = Depends(get_d
             for p in sorted(summary.players, key=lambda p: p.team)
         ],
     }
+    team1_win_graph, team2_win_graph = build_match_round_win_diagrams(match)
     return templates.TemplateResponse(
         request,
         "matches/detail.html",
-        {"match": match, "summary": summary, "chart_data": chart_data},
+        {
+            "match": match,
+            "summary": summary,
+            "chart_data": chart_data,
+            "team1_win_graph": team1_win_graph,
+            "team2_win_graph": team2_win_graph,
+        },
     )
 
 

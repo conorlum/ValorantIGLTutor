@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from app.models import MatchPlayer, Player
+from app.models import Match, MatchPlayer, Player
 from app.models.match import Team
 
 # Round-win diamond: compact, with larger nodes since there's no edge label to make room for.
@@ -189,6 +189,44 @@ def build_state_diagrams(db: Session, player: Player) -> tuple[StateDiagram, Sta
                     break
 
     return _round_win_diagram(win_stats), _kill_order_diagram(kill_order_weights)
+
+
+def build_match_round_win_diagrams(match: Match) -> tuple[StateDiagram, StateDiagram]:
+    """Team-level version of build_state_diagrams's round-win diagram, scoped to one match.
+
+    Replays each round's kills once, recording a state/outcome sample for both teams'
+    perspectives simultaneously (unlike the player version, there's no player_alive gate --
+    a team's own_alive count already tells you whether it's still in the round).
+    """
+    sizes = _team_sizes(match.match_players)
+    team_of = {mp.id: mp.team for mp in match.match_players}
+
+    win_stats: dict[Team, dict[str, dict[str, int]]] = {Team.TEAM_1: {}, Team.TEAM_2: {}}
+
+    for round_row in match.rounds:
+        alive = {Team.TEAM_1: sizes[Team.TEAM_1], Team.TEAM_2: sizes[Team.TEAM_2]}
+        winner = _winner_team(round_row.outcome)
+        events = sorted(round_row.kill_events, key=lambda e: e.event_time_seconds)
+
+        for event in events:
+            for own_team, opp_team in ((Team.TEAM_1, Team.TEAM_2), (Team.TEAM_2, Team.TEAM_1)):
+                own_alive, opp_alive = alive[own_team], alive[opp_team]
+                if own_alive >= 1 and opp_alive >= 1 and winner is not None:
+                    state = f"{own_alive}v{opp_alive}"
+                    bucket = win_stats[own_team].setdefault(state, {"win": 0, "total": 0})
+                    bucket["total"] += 1
+                    if winner == own_team:
+                        bucket["win"] += 1
+
+            if event.death_match_player_id is not None:
+                dead_team = team_of.get(event.death_match_player_id)
+                if dead_team is not None and alive[dead_team] > 0:
+                    alive[dead_team] -= 1
+
+            if alive[Team.TEAM_1] <= 0 or alive[Team.TEAM_2] <= 0:
+                break
+
+    return _round_win_diagram(win_stats[Team.TEAM_1]), _round_win_diagram(win_stats[Team.TEAM_2])
 
 
 def _round_win_diagram(win_stats: dict[str, dict[str, int]]) -> StateDiagram:
