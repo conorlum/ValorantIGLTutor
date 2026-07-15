@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.services.player_graphs import build_state_diagrams
 from app.services.players import get_player_or_404, get_player_profile, list_players
 from app.templates import templates
 
@@ -23,6 +24,14 @@ def player_detail(request: Request, display_name: str, db: Session = Depends(get
         "kill_impact": [m.average_kill_impact for m in profile.matches],
         "death_impact": [m.average_death_impact for m in profile.matches],
     }
+    round_win_graph, kill_order_graph = build_state_diagrams(db, player)
     return templates.TemplateResponse(
-        request, "players/detail.html", {"profile": profile, "chart_data": chart_data}
+        request,
+        "players/detail.html",
+        {
+            "profile": profile,
+            "chart_data": chart_data,
+            "round_win_graph": round_win_graph,
+            "kill_order_graph": kill_order_graph,
+        },
     )

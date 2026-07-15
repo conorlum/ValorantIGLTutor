@@ -48,7 +48,7 @@ def get_player_or_404(db: Session, display_name: str) -> Player:
 
 
 def find_player_by_search_query(db: Session, query: str) -> Player | None:
-    """Looks up a player from a tracker.gg-style "Name#Tag" search box.
+    """Looks up a player from a "Name#Tag" search box.
 
     The scraped demo data has no real Riot ID tag, so any trailing "#..."
     is stripped before matching -- typing it out of habit still works.

@@ -4,24 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-script pipeline (`trackerScraper.py`) that scrapes Valorant match pages from tracker.gg (saved locally as complete webpages via browser automation), parses the raw HTML into structured per-round data, and computes a custom per-player, per-round "Impact" score based on kill order, economy state, post-plant timing, and trade windows. There is no package manager manifest, test suite, linter, or build step — this is a personal analysis tool run directly with `python trackerScraper.py`.
+A Valorant match-analytics project. The primary, forward-looking piece is `webapp/` — a FastAPI + SQLAlchemy + Postgres site that stores match/round/kill-event data in a source-agnostic schema and computes a custom per-player, per-round "Impact" score based on kill order, economy state, post-plant timing, and trade windows.
+
+At the root of the repo, `matchDataPipeline.py` is a personal, local-only utility used occasionally to pull data from a saved match page into that schema — it's how the webapp's demo data got populated, and how new demo matches can be added later. It's a one-person tool (GUI automation, hardcoded local paths) and isn't part of the deployed site.
 
 ## What this hopes to be
 
-A website using the Riot API for valorant matches to pull the same information as the scraping and showing the stats and graphs on the website.  Using the logic behind creating and analyzing the results of the matches show interesting results on the website.
+Eventually `webapp/` will pull match data live from the Riot API instead of (or alongside) the local import pipeline. Riot does not grant Valorant match-data API access on a self-serve personal key — production access requires demonstrating a working product first — so the schema in `app/models/` is deliberately source-agnostic (a `MatchSource` enum distinguishes `SCRAPED` vs `RIOT_API` rows) so a `RiotAPISource` adapter can be added later without touching the schema or the Impact scoring logic.
 
-Riot does not grant Valorant match-data API access on a self-serve personal key — production access requires demonstrating a working product first. So `webapp/` (below) is being built against a source-agnostic schema, seeded from `trackerScraper.py`'s scraped output, so the Riot API can be swapped in later as a second data source without touching the schema or the Impact scoring logic once it's ported over.
+## `webapp/` — the site
 
-## `webapp/` — in-progress website rebuild
+A FastAPI + SQLAlchemy 2.0 + Alembic + Postgres project, independent of the root-level `matchDataPipeline.py` (which stays as the local seed-data tool until Riot API approval).
 
-A separate FastAPI + SQLAlchemy 2.0 + Alembic + Postgres project, independent of the root-level scraping script (`trackerScraper.py` is not being deleted or replaced by this — it stays as the seed-data pipeline until Riot API approval).
-
-- `app/models/` — the canonical, source-agnostic schema: `players`, `matches`/`match_players`, `rounds`/`round_player_stats`, `kill_events`, `impact_scores`. Designed so both the existing scraper output and a future `RiotAPISource` can feed the same tables via pluggable adapters (adapters not yet built).
+- `app/models/` — the canonical, source-agnostic schema: `players`, `matches`/`match_players`, `rounds`/`round_player_stats`, `kill_events`, `impact_scores`. Designed so both the local import pipeline's output and a future `RiotAPISource` can feed the same tables via pluggable adapters.
+- `app/adapters/demo_match_source.py` — adapter that loads a match from `matchDataPipeline.py`'s parsed output into the schema above.
 - `app/db.py` / `app/config.py` — SQLAlchemy engine/session setup; DB connection comes from `DATABASE_URL` (see `.env.example`), defaulting to the local docker-compose Postgres.
 - `app/main.py` — FastAPI app, currently just a `/health` endpoint that round-trips the DB.
 - `alembic/versions/` — schema migrations; `0001_initial_schema.py` creates all 7 tables.
 - `docker-compose.yml` — local Postgres 16 for development.
 - `render.yaml` — Render blueprint for deployment (Postgres + web service, runs `alembic upgrade head` on build).
+- `scripts/seed_demo_matches.py` / `scripts/ingest_demo_match.py` — one-off scripts to bulk- or single-ingest match JSONs from `MatchHTMLJsons/` into the DB via the adapter above. Not part of the deploy path — `render.yaml`'s build command seeds from the static `seed_data/demo_matches.sql` dump instead.
 
 ### Running the webapp locally
 
@@ -34,33 +36,37 @@ docker compose up -d                        # start local Postgres
 
 A `.venv` with `requirements.txt` installed already exists in `webapp/`. Copy `.env.example` to `.env` if you need to override `DATABASE_URL`.
 
-## Running it
+## `matchDataPipeline.py` — local match-data import utility
+
+Not part of the deployed site. A single-script, semi-manual pipeline run directly with `python matchDataPipeline.py`, used to bring a new match's data into `MatchHTMLJsons/` and, from there, into the webapp's DB via the adapter above.
+
+### Running it
 
 ```
-python trackerScraper.py
+python matchDataPipeline.py
 ```
 
-The script prompts interactively for a match key in the form `<Map><MMDDYYHHMM>` (e.g. `Haven101725908`). The `__main__` block has most pipeline stages commented out — only `measureOutgoingImpact(filename)` runs by default, which means a corresponding JSON file must already exist under `TrackerHTMLJsons/` before running (see Pipeline stages below for how to regenerate one).
+The script prompts interactively for a match key in the form `<Map><MMDDYYHHMM>` (e.g. `Haven101725908`). The `__main__` block has most pipeline stages commented out — only `measureOutgoingImpact(filename)` runs by default, which means a corresponding JSON file must already exist under `MatchHTMLJsons/` before running (see Pipeline stages below for how to regenerate one).
 
 No `requirements.txt` exists. Dependencies inferred from imports: `pyautogui`, `Pillow` (`PIL`), `imagehash`, `networkx`, `matplotlib`, and `pydot` (required by `networkx.drawing.nx_pydot.graphviz_layout`, which also needs Graphviz installed on the system).
 
 ### Per-machine config (edit before running on a new machine)
 
-At the top of `trackerScraper.py`:
+At the top of `matchDataPipeline.py`:
 - `User` — Windows username, used to build absolute `C:\Users\{User}\...` paths throughout the script (paths are not portable/relative).
 - `resolutionScaling` — scales `pyautogui` mouse-move offsets in `moveOneRoundOver()`; set to `1.5` for 4K displays.
 
-## Pipeline stages
+### Pipeline stages
 
 The script is one file organized into sequential stages, each consuming the previous stage's output. Stage functions are mostly invoked ad hoc from `__main__` (commented in/out) rather than as a single orchestrated run:
 
-1. **Scrape (GUI automation)** — `createMapFolder`, `clickAndSaveRound`, `saveAllRounds`, `moveOneRoundOver`, `cleanUpFiles`. Uses `pyautogui` to drive the browser's "Save As" dialog and save each round of a tracker.gg match as a complete webpage (HTML + `_files/` assets) into `TrackerPages/<filename>_ALL_FILES/<filename>-Round<N>/`. This requires the match page to already be open in a browser window and the mouse positioned correctly — it's a semi-manual, human-supervised loop (`input()` prompts between batches of 20 rounds).
+1. **Aquire (GUI automation)** — `createMapFolder`, `clickAndSaveRound`, `saveAllRounds`, `moveOneRoundOver`, `cleanUpFiles`. Uses `pyautogui` to drive the browser's "Save As" dialog and save each round of a match as a complete webpage (HTML + `_files/` assets) into `MatchPages/<filename>_ALL_FILES/<filename>-Round<N>/`. This requires the match page to already be open in a browser window and the mouse positioned correctly — it's a semi-manual, human-supervised loop (`input()` prompts between batches of 20 rounds).
 
-2. **Condense to JSON** — `parseOutRoundCount` (reads total rounds from the saved page's team-A/team-B round-win counters), `saveHTMLToJson` (extracts just the relevant `<body>`-adjacent HTML line per round and writes one combined JSON per match to `TrackerHTMLJsons/<filename>.json`), `loadHTMLSFromJson`.
+2. **Condense to JSON** — `parseOutRoundCount` (reads total rounds from the saved page's team-A/team-B round-win counters), `saveHTMLToJson` (extracts just the relevant `<body>`-adjacent HTML line per round and writes one combined JSON per match to `MatchHTMLJsons/<filename>.json`), `loadHTMLSFromJson`.
 
-3. **Extract structured data from HTML** — `parseEconPerRound`, `parseRoundOutcome`, `parseRoundKillList`, `parseTeamPlayers`, `parsePlayerRoundInfo`. These parse tracker.gg's HTML via string-splitting on known CSS class name fragments (not a real HTML parser) — the class names being matched against are documented in `TrackerClasses.txt`. This is brittle to tracker.gg frontend changes; if parsing breaks, check whether these class-name substrings still appear in a freshly saved page.
+3. **Extract structured data from HTML** — `parseEconPerRound`, `parseRoundOutcome`, `parseRoundKillList`, `parseTeamPlayers`, `parsePlayerRoundInfo`. These parse the saved page's HTML via string-splitting on known CSS class name fragments (not a real HTML parser) — the class names being matched against are documented in `MatchPageClasses.txt`. This is brittle to the source site's frontend changes; if parsing breaks, check whether these class-name substrings still appear in a freshly saved page.
 
-4. **Icon classification via perceptual hashing** — `agentDisplayIconLookup`, `weaponNewImageLookup`. Saved pages embed agent/weapon icons as numbered local image files (`displayicon<N>.png`, `newimage<N>.png`); these functions identify which agent/weapon an icon represents by comparing `imagehash.average_hash` against the reference sets in `agentDisplayIconPictureReferences/` and `weaponNewImagePictureReferences/` (closest hash wins, distance > 5 is rejected as `"BAD CLASSIFICATION!"`). Adding a new agent/weapon means dropping a new reference PNG into the matching folder.
+4. **Icon classification via perceptual hashing** — `agentDisplayIconLookup`, `weaponNewImageLookup`. Saved pages embed agent/weapon icons as numbered local image files (`displayicon<N>.png`, `newimage<N>.png`); these functions identify which agent/weapon an icon represents by comparing `imagehash.average_hash` against the reference sets in `agentIconReferences/` and `weaponIconReferences/` (closest hash wins, distance > 5 is rejected as `"BAD CLASSIFICATION!"`). Adding a new agent/weapon means dropping a new reference PNG into the matching folder.
 
 5. **Impact calculation** — the core analytics, all feeding `measureOutgoingImpact`:
    - `calculateKillOrderBonus` — a `networkx` `DiGraph` of every man-advantage state (`5v5` → ... → `0v0`) with a hand-tuned bonus weight on each edge, used to reward/penalize kills based on how much they swung the round state.
@@ -71,12 +77,12 @@ The script is one file organized into sequential stages, each consuming the prev
    - `calculateDamageAndAssists_KillOrderSum_KillFactorAverage` and `calculateRoundImpact` combine the above into per-round `killImpact`/`deathImpact`/`Impact` for every player.
    - `displayImpact` prints players ranked by average `Impact`; `createAndDisplayKillOrderGraph` renders a `matplotlib` graph of one player's kill/death transitions through the man-advantage state graph.
 
-## Data layout / naming convention
+### Data layout / naming convention
 
 Match keys follow `<MapName><MMDDYYHHMM>` (e.g. `Haven101725908` = Haven, played 10/17, ~08:xx) and are used as the lookup key across all of these directories:
 
-- `TrackerPages/<key>_ALL_FILES/` — raw saved webpages per round (large, browser-snapshot output of stage 1).
-- `TrackerHTMLJsons/<key>.json` — condensed per-round HTML produced by stage 2; this is what all downstream parsing (`loadHTMLSFromJson`) actually reads.
-- `agentDisplayIconPictureReferences/*.png` — one reference icon per agent, filename is the agent name (`KAYO.png` is looked up but normalized to display as `"KAY/O"`).
-- `weaponNewImagePictureReferences/*.png` — one reference icon per weapon, filename is the weapon name.
-- `TrackerClasses.txt` — a running notes file of tracker.gg CSS class-name fragments used as string-split anchors throughout stage 3; consult/update this when HTML parsing breaks.
+- `MatchPages/<key>_ALL_FILES/` — raw saved webpages per round (large, browser-snapshot output of stage 1).
+- `MatchHTMLJsons/<key>.json` — condensed per-round HTML produced by stage 2; this is what all downstream parsing (`loadHTMLSFromJson`) actually reads.
+- `agentIconReferences/*.png` — one reference icon per agent, filename is the agent name (`KAYO.png` is looked up but normalized to display as `"KAY/O"`).
+- `weaponIconReferences/*.png` — one reference icon per weapon, filename is the weapon name.
+- `MatchPageClasses.txt` — a running notes file of CSS class-name fragments used as string-split anchors throughout stage 3; consult/update this when HTML parsing breaks.
