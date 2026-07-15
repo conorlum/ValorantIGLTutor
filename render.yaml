@@ -16,3 +16,5 @@ services:
         fromDatabase:
           name: valomaths-db
           property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true

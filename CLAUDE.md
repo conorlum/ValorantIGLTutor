@@ -23,7 +23,7 @@ A FastAPI + SQLAlchemy 2.0 + Alembic + Postgres project, independent of the root
 - `alembic/versions/` — schema migrations; `0001_initial_schema.py` creates all 7 tables.
 - `docker-compose.yml` — local Postgres 16 for development.
 - `render.yaml` — Render blueprint for deployment (Postgres + web service, runs `alembic upgrade head` on build).
-- `scripts/seed_demo_matches.py` / `scripts/ingest_demo_match.py` — one-off scripts to bulk- or single-ingest match JSONs from `MatchHTMLJsons/` into the DB via the adapter above. Not part of the deploy path — `render.yaml`'s build command seeds from the static `seed_data/demo_matches.sql` dump instead.
+- `scripts/seed_demo_matches.py` / `scripts/ingest_demo_match.py` — one-off scripts to bulk- or single-ingest match JSONs from `MatchHTMLJsons/` into the DB via the adapter above. Not part of the deploy path — `render.yaml`'s build command seeds from the static `seed_data/demo_matches.sql` dump instead, via `scripts/load_seed_data.py`.
 
 ### Running the webapp locally
 
