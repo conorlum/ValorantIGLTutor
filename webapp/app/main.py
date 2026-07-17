@@ -37,5 +37,6 @@ def health(db: Session = Depends(get_db)):
 
 
 @app.get("/riot.txt")
+@app.get("//riot.txt")
 def riot_verification():
     return PlainTextResponse("f212a992-ace0-402a-838d-cad406c48fe2")
