@@ -2,7 +2,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -34,3 +34,8 @@ def root(request: Request, db: Session = Depends(get_db)):
 def health(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"status": "ok"}
+
+
+@app.get("/riot.txt")
+def riot_verification():
+    return PlainTextResponse("f212a992-ace0-402a-838d-cad406c48fe2")
