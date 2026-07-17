@@ -12,7 +12,7 @@ router = APIRouter(tags=["auth"])
 
 @router.get("/login")
 def login_form(request: Request, db: Session = Depends(get_db)):
-    players = list_players(db)
+    players = sorted(list_players(db), key=lambda p: p.display_name.lower())
     return templates.TemplateResponse(request, "login.html", {"players": players})
 
 

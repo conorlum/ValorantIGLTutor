@@ -12,7 +12,7 @@
   <select name="display_name" required>
     <option value="" disabled selected>Choose a player&hellip;</option>
     {% for p in players %}
-    <option value="{{ p.display_name }}">{{ p.display_name }} (avg impact {{ p.average_impact | round | int }})</option>
+    <option value="{{ p.display_name }}">{{ p.display_name }}</option>
     {% endfor %}
   </select>
   <button type="submit">Log in as this player</button>
