@@ -24,6 +24,11 @@ def player_detail(request: Request, display_name: str, db: Session = Depends(get
         "kill_impact": [m.average_kill_impact for m in profile.matches],
         "death_impact": [m.average_death_impact for m in profile.matches],
     }
+    highlights_chart_data = {
+        "labels": ["Econ", "Clutch / High-Impact", "Post-Plant"],
+        "kill": [profile.avg_econ_kill, profile.avg_clutch_kill, profile.avg_post_plant_kill],
+        "death": [profile.avg_econ_death, profile.avg_clutch_death, profile.avg_post_plant_death],
+    }
     round_win_graph, kill_order_graph = build_state_diagrams(db, player)
     return templates.TemplateResponse(
         request,
@@ -31,6 +36,7 @@ def player_detail(request: Request, display_name: str, db: Session = Depends(get
         {
             "profile": profile,
             "chart_data": chart_data,
+            "highlights_chart_data": highlights_chart_data,
             "round_win_graph": round_win_graph,
             "kill_order_graph": kill_order_graph,
         },

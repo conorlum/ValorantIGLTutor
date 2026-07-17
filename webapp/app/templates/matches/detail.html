@@ -47,6 +47,31 @@
 </div>
 
 <div class="card">
+  <h2>Match Data Highlights</h2>
+  <p class="page-meta">Match-summed impact by category, split into kill impact and death impact.</p>
+  <div class="tab-row" role="tablist">
+    {% for p in summary.players %}
+    <button type="button" class="tab-btn tab-btn-{{ p.team }}{{ ' active' if loop.first else '' }}" data-player-tab="{{ p.match_player_id }}">{{ p.display_name }}</button>
+    {% endfor %}
+  </div>
+  <div style="max-width: 620px; height: 320px; margin: 0 auto;">
+    <canvas id="impact-highlights-chart"></canvas>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-tile">
+      <div class="stat-label">Traded for teammate</div>
+      <div class="stat-value" id="traded-teammate-value">-</div>
+      <div class="stat-sub" id="traded-teammate-sub"></div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Traded by teammate</div>
+      <div class="stat-value" id="traded-by-teammate-value">-</div>
+      <div class="stat-sub" id="traded-by-teammate-sub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
   <h2>Impact per round</h2>
   <div class="chart-scroll">
     <div id="impact-chart-sizer">
@@ -134,6 +159,60 @@
   <h2>Round detail</h2>
   <div id="round-detail"></div>
 </div>
+
+<script>
+  const highlightsChartData = {{ highlights_chart_data | tojson }};
+  const firstPlayerId = highlightsChartData.default_player_id;
+
+  function formatTradeBreakdown(breakdown) {
+    const entries = Object.entries(breakdown);
+    return entries.length ? entries.map(([name, n]) => `${name} (${n})`).join(", ") : "—";
+  }
+
+  function renderTradeStats(data) {
+    document.getElementById("traded-teammate-value").textContent = data.traded_teammate;
+    document.getElementById("traded-teammate-sub").textContent = formatTradeBreakdown(data.traded_teammate_breakdown);
+    document.getElementById("traded-by-teammate-value").textContent = data.traded_by_teammate;
+    document.getElementById("traded-by-teammate-sub").textContent = formatTradeBreakdown(data.traded_by_teammate_breakdown);
+  }
+  renderTradeStats(highlightsChartData.players[firstPlayerId]);
+
+  const highlightsChart = new Chart(document.getElementById("impact-highlights-chart"), {
+    type: "bar",
+    data: {
+      labels: highlightsChartData.labels,
+      datasets: [
+        { label: "Kill Impact", data: highlightsChartData.players[firstPlayerId].kill, backgroundColor: "#0ca30c", borderRadius: 0 },
+        { label: "Death Impact", data: highlightsChartData.players[firstPlayerId].death, backgroundColor: "#e0554f", borderRadius: 0 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      categoryPercentage: 0.6,
+      barPercentage: 1.0,
+      plugins: {
+        legend: { position: "bottom", labels: { color: "#c3c2b7", usePointStyle: true, boxWidth: 8 } },
+      },
+      scales: {
+        x: { ticks: { color: "#898781" }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: "#898781" }, grid: { color: "#2c2c2a" } },
+      },
+    },
+  });
+
+  document.querySelectorAll(".tab-btn[data-player-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const playerId = btn.dataset.playerTab;
+      document.querySelectorAll(".tab-btn[data-player-tab]").forEach((b) => b.classList.toggle("active", b === btn));
+      const data = highlightsChartData.players[playerId];
+      highlightsChart.data.datasets[0].data = data.kill;
+      highlightsChart.data.datasets[1].data = data.death;
+      highlightsChart.update();
+      renderTradeStats(data);
+    });
+  });
+</script>
 
 <script>
   document.querySelectorAll(".tab-btn[data-team-tab]").forEach((btn) => {

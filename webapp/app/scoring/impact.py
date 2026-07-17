@@ -136,6 +136,19 @@ def _traded_factor(round_kills: list[dict], checking_kill: dict, self_kill: bool
     return 1
 
 
+def _clutch_bucket(own_alive: int, opp_alive: int) -> bool:
+    # Priority order so a kill is only ever classified into one bucket:
+    # lone survivor (1vX), an even state resolving to a man advantage (XvX),
+    # or fighting back from a 2-vs-3-or-more disadvantage (2vX, X > 2).
+    if own_alive == 1:
+        return True
+    if own_alive == opp_alive:
+        return True
+    if own_alive == 2 and opp_alive > 2:
+        return True
+    return False
+
+
 def _check_for_resurrection(kill_index: int, round_kills: list[dict]) -> bool:
     match_player_id = round_kills[kill_index]["death_match_player_id"]
     for later_kill in round_kills[kill_index + 1 :]:
@@ -275,6 +288,36 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             }
         )
 
+    # Trade detection: kill D1 (A kills B, an enemy kill), followed within 10s by
+    # kill D2 where B's teammate C kills A. From C's perspective, C traded for B;
+    # from B's perspective, B was traded by C.
+    time_to_trade = 10
+    trade_kill_counts: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    trade_death_counts: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    trade_kill_targets: dict[int, dict[int, dict[int, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    trade_death_sources: dict[int, dict[int, dict[int, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+    for round_number, kills in round_kills.items():
+        for d1 in kills:
+            a_id, b_id = d1["killer_match_player_id"], d1["death_match_player_id"]
+            if a_id is None or b_id is None or a_id == b_id:
+                continue
+            b_team = match_players[b_id].team
+            if match_players[a_id].team == b_team:
+                continue
+
+            for d2 in kills:
+                c_id, victim2_id = d2["killer_match_player_id"], d2["death_match_player_id"]
+                if victim2_id != a_id or c_id is None or c_id == victim2_id:
+                    continue
+                trade_time = d2["event_time_seconds"] - d1["event_time_seconds"]
+                if 0 <= trade_time <= time_to_trade and match_players[c_id].team == b_team:
+                    trade_kill_counts[round_number][c_id] += 1
+                    trade_death_counts[round_number][b_id] += 1
+                    trade_kill_targets[round_number][c_id][b_id] += 1
+                    trade_death_sources[round_number][b_id][c_id] += 1
+                    break
+
     # Econ-differential factor per kill.
     for round_number, kills in round_kills.items():
         for kill in kills:
@@ -285,8 +328,12 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             death_econ = round_player_stats[round_number][death_id]["loadout"]
             if self_kill:
                 kill["econ_differential_factor"] = _categorize_econ(death_econ)
+                kill["econ_mismatch"] = False
             else:
-                kill["econ_differential_factor"] = _categorize_econ(killer_econ) / _categorize_econ(death_econ)
+                killer_tier = _categorize_econ(killer_econ)
+                death_tier = _categorize_econ(death_econ)
+                kill["econ_differential_factor"] = killer_tier / death_tier
+                kill["econ_mismatch"] = killer_tier != death_tier
 
     # Kill-order bonuses, decorated per kill.
     for round_number, kills in round_kills.items():
@@ -338,6 +385,14 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             )
             kill["death_order_bonus_x_swing"] = death_order_bonus * econ_swing_risk_factor
 
+            killer_own_alive = team1_kill_index if killer_team == Team.TEAM_1 else team2_kill_index
+            killer_opp_alive = team2_kill_index if killer_team == Team.TEAM_1 else team1_kill_index
+            kill["killer_clutch"] = not self_kill and _clutch_bucket(killer_own_alive, killer_opp_alive)
+            kill["victim_clutch"] = not self_kill and _clutch_bucket(killer_opp_alive, killer_own_alive)
+
+            plant_time = round_row.plant_time if round_row.planted else None
+            kill["is_post_plant"] = plant_time is not None and kill["event_time_seconds"] >= plant_time
+
             resurrection = _check_for_resurrection(kill_index, kills)
             if not resurrection:
                 if self_kill:
@@ -363,6 +418,9 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             kill_order_bonus_x_swing_sum = 0.0
             kill_factor_sum = 0.0
             kills_in_round = 0
+            clutch_kill_sum = 0.0
+            post_plant_kill_sum = 0.0
+            econ_mismatch_kill_sum = 0.0
 
             for kill in kills:
                 if kill["killer_match_player_id"] == match_player_id:
@@ -372,6 +430,12 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     kill_order_bonus_x_econ_sum += kill["kill_order_bonus_x_econ"]
                     kill_order_bonus_x_time_sum += kill["kill_order_bonus_x_time"]
                     kill_order_bonus_x_swing_sum += kill["kill_order_bonus_x_swing"]
+                    if kill["killer_clutch"]:
+                        clutch_kill_sum += kill["kill_order_bonus"]
+                    if kill["is_post_plant"]:
+                        post_plant_kill_sum += kill["kill_order_bonus_x_time"]
+                    if kill["econ_mismatch"]:
+                        econ_mismatch_kill_sum += kill["kill_order_bonus_x_econ"]
 
             adjust_acs_for_multikill = -50 * kills_in_round if kills_in_round > 1 else 0
             damage_and_assists = acs - adjust_acs_for_multikill
@@ -380,11 +444,20 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             death_order_bonus_x_econ_sum = 0.0
             death_order_bonus_x_time_sum = 0.0
             death_order_bonus_x_swing_sum = 0.0
+            clutch_death_sum = 0.0
+            post_plant_death_sum = 0.0
+            econ_mismatch_death_sum = 0.0
             for kill in kills:
                 if kill["death_match_player_id"] == match_player_id:
                     death_order_bonus_x_econ_sum += kill["death_order_bonus_x_econ"]
                     death_order_bonus_x_time_sum += kill["death_order_bonus_x_time"]
                     death_order_bonus_x_swing_sum += kill["death_order_bonus_x_swing"]
+                    if kill["victim_clutch"]:
+                        clutch_death_sum += kill["death_order_bonus"]
+                    if kill["is_post_plant"]:
+                        post_plant_death_sum += kill["death_order_bonus_x_time"]
+                    if kill["econ_mismatch"]:
+                        econ_mismatch_death_sum += kill["death_order_bonus_x_econ"]
 
             kill_factor = kill_factor_average if kill_factor_average != 0 else 1
             damages = round(damage_and_assists * kill_factor * 1.25)
@@ -402,6 +475,20 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                 "econ_impact": round(kill_order_bonus_x_econ_sum - death_order_bonus_x_econ_sum),
                 "time_impact": round(kill_order_bonus_x_time_sum - death_order_bonus_x_time_sum),
                 "swing_impact": round(kill_order_bonus_x_swing_sum - death_order_bonus_x_swing_sum),
+                "econ_kill": round(econ_mismatch_kill_sum),
+                "econ_death": round(econ_mismatch_death_sum),
+                "clutch_kill": round(clutch_kill_sum),
+                "clutch_death": round(clutch_death_sum),
+                "post_plant_kill": round(post_plant_kill_sum),
+                "post_plant_death": round(post_plant_death_sum),
+                "traded_teammate": trade_kill_counts[round_number].get(match_player_id, 0),
+                "traded_by_teammate": trade_death_counts[round_number].get(match_player_id, 0),
+                "traded_teammate_targets": {
+                    str(k): v for k, v in trade_kill_targets[round_number].get(match_player_id, {}).items()
+                },
+                "traded_by_teammate_sources": {
+                    str(k): v for k, v in trade_death_sources[round_number].get(match_player_id, {}).items()
+                },
             }
 
             impact_score = (

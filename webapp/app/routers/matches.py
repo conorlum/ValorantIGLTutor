@@ -49,6 +49,21 @@ def match_detail(request: Request, external_id: str, db: Session = Depends(get_d
             for p in sorted(summary.players, key=lambda p: p.team)
         ],
     }
+    highlights_chart_data = {
+        "labels": ["Econ", "Clutch / High-Impact", "Post-Plant"],
+        "default_player_id": str(summary.players[0].match_player_id) if summary.players else None,
+        "players": {
+            str(p.match_player_id): {
+                "kill": [p.econ_kill, p.clutch_kill, p.post_plant_kill],
+                "death": [p.econ_death, p.clutch_death, p.post_plant_death],
+                "traded_teammate": p.traded_teammate,
+                "traded_by_teammate": p.traded_by_teammate,
+                "traded_teammate_breakdown": p.traded_teammate_names,
+                "traded_by_teammate_breakdown": p.traded_by_teammate_names,
+            }
+            for p in summary.players
+        },
+    }
     team1_win_graph, team2_win_graph = build_match_round_win_diagrams(match)
     return templates.TemplateResponse(
         request,
@@ -57,6 +72,7 @@ def match_detail(request: Request, external_id: str, db: Session = Depends(get_d
             "match": match,
             "summary": summary,
             "chart_data": chart_data,
+            "highlights_chart_data": highlights_chart_data,
             "team1_win_graph": team1_win_graph,
             "team2_win_graph": team2_win_graph,
         },

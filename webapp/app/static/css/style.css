@@ -144,8 +144,29 @@ nav {
 
 .tab-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.tab-btn-team-1 {
+  background: color-mix(in srgb, var(--team-1) 16%, transparent);
+  border-color: var(--team-1);
+}
+
+.tab-btn-team-2 {
+  background: color-mix(in srgb, var(--team-2) 16%, transparent);
+  border-color: var(--team-2);
+}
+
+.tab-btn-team-1.active {
+  background: color-mix(in srgb, var(--team-1) 26%, transparent);
+  color: var(--ink);
+}
+
+.tab-btn-team-2.active {
+  background: color-mix(in srgb, var(--team-2) 26%, transparent);
+  color: var(--ink);
 }
 
 .tab-btn {

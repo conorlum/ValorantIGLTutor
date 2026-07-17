@@ -40,6 +40,38 @@
   <canvas id="player-impact-chart" height="90"></canvas>
 </div>
 
+<div class="card">
+  <h2>Match Data Highlights</h2>
+  <p class="page-meta">Average per match, across {{ profile.matches | length }} match{{ "es" if profile.matches | length != 1 else "" }} played.</p>
+  <div style="max-width: 620px; height: 320px; margin: 0 auto;">
+    <canvas id="player-highlights-chart"></canvas>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-tile">
+      <div class="stat-label">Traded for teammate</div>
+      <div class="stat-value">{{ profile.avg_traded_teammate | round(1) }}</div>
+      <div class="stat-sub">
+        {% if profile.top_traded_teammate %}
+        {% for name, count in profile.top_traded_teammate %}{{ name }} ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}
+        &mdash;
+        {% endif %}
+      </div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Traded by teammate</div>
+      <div class="stat-value">{{ profile.avg_traded_by_teammate | round(1) }}</div>
+      <div class="stat-sub">
+        {% if profile.top_traded_by_teammate %}
+        {% for name, count in profile.top_traded_by_teammate %}{{ name }} ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}
+        &mdash;
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 {% if round_win_graph.nodes %}
 <div class="card">
   <h2>Round win rate by game state</h2>
@@ -248,6 +280,33 @@
           ticks: { color: "#898781" },
           grid: { color: "#2c2c2a" },
         },
+      },
+    },
+  });
+</script>
+
+<script>
+  const highlightsChartData = {{ highlights_chart_data | tojson }};
+  new Chart(document.getElementById("player-highlights-chart"), {
+    type: "bar",
+    data: {
+      labels: highlightsChartData.labels,
+      datasets: [
+        { label: "Kill Impact", data: highlightsChartData.kill, backgroundColor: "#0ca30c", borderRadius: 0 },
+        { label: "Death Impact", data: highlightsChartData.death, backgroundColor: "#e0554f", borderRadius: 0 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      categoryPercentage: 0.6,
+      barPercentage: 1.0,
+      plugins: {
+        legend: { position: "bottom", labels: { color: "#c3c2b7", usePointStyle: true, boxWidth: 8 } },
+      },
+      scales: {
+        x: { ticks: { color: "#898781" }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: "#898781" }, grid: { color: "#2c2c2a" } },
       },
     },
   });

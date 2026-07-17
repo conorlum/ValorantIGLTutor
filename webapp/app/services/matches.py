@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -39,6 +39,18 @@ class PlayerSummary:
     impact_by_round: dict[int, float]
     kill_impact_by_round: dict[int, float]
     death_impact_by_round: dict[int, float]
+    econ_kill: float = 0.0
+    econ_death: float = 0.0
+    clutch_kill: float = 0.0
+    clutch_death: float = 0.0
+    post_plant_kill: float = 0.0
+    post_plant_death: float = 0.0
+    traded_teammate: int = 0
+    traded_by_teammate: int = 0
+    traded_teammate_ids: dict[int, int] = field(default_factory=dict)
+    traded_by_teammate_ids: dict[int, int] = field(default_factory=dict)
+    traded_teammate_names: dict[str, int] = field(default_factory=dict)
+    traded_by_teammate_names: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -59,6 +71,7 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
             ImpactScore.impact,
             ImpactScore.kill_impact,
             ImpactScore.death_impact,
+            ImpactScore.breakdown,
         )
         .join(Player, Player.id == MatchPlayer.player_id)
         .join(ImpactScore, ImpactScore.match_player_id == MatchPlayer.id)
@@ -71,7 +84,7 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
     by_player: dict[int, PlayerSummary] = {}
     round_numbers: set[int] = set()
 
-    for match_player_id, display_name, agent, team, round_number, impact, kill_impact, death_impact in rows:
+    for match_player_id, display_name, agent, team, round_number, impact, kill_impact, death_impact, breakdown in rows:
         round_numbers.add(round_number)
         summary = by_player.get(match_player_id)
         if summary is None:
@@ -91,6 +104,32 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
         summary.impact_by_round[round_number] = impact
         summary.kill_impact_by_round[round_number] = kill_impact
         summary.death_impact_by_round[round_number] = death_impact
+
+        breakdown = breakdown or {}
+        summary.econ_kill += breakdown.get("econ_kill", 0)
+        summary.econ_death += breakdown.get("econ_death", 0)
+        summary.clutch_kill += breakdown.get("clutch_kill", 0)
+        summary.clutch_death += breakdown.get("clutch_death", 0)
+        summary.post_plant_kill += breakdown.get("post_plant_kill", 0)
+        summary.post_plant_death += breakdown.get("post_plant_death", 0)
+        summary.traded_teammate += breakdown.get("traded_teammate", 0)
+        summary.traded_by_teammate += breakdown.get("traded_by_teammate", 0)
+        for teammate_id, count in breakdown.get("traded_teammate_targets", {}).items():
+            summary.traded_teammate_ids[int(teammate_id)] = summary.traded_teammate_ids.get(int(teammate_id), 0) + count
+        for teammate_id, count in breakdown.get("traded_by_teammate_sources", {}).items():
+            summary.traded_by_teammate_ids[int(teammate_id)] = summary.traded_by_teammate_ids.get(int(teammate_id), 0) + count
+
+    for summary in by_player.values():
+        summary.traded_teammate_names = {
+            by_player[mp_id].display_name: count
+            for mp_id, count in summary.traded_teammate_ids.items()
+            if mp_id in by_player
+        }
+        summary.traded_by_teammate_names = {
+            by_player[mp_id].display_name: count
+            for mp_id, count in summary.traded_by_teammate_ids.items()
+            if mp_id in by_player
+        }
 
     for summary in by_player.values():
         values = summary.impact_by_round.values()
