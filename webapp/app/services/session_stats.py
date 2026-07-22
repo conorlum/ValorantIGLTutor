@@ -243,11 +243,11 @@ def _build_fun_stats(
         most_deaths_to_enemy_bottom_frag,
         most_clutches,
         most_xvx_kills,
+        most_round_changer,
     ) = _build_replay_stats(db, session, our_mp_to_player, players_by_id)
     round_mvp = _build_round_mvp(db, match_ids, our_mp_to_player, players_by_id)
     most_trades_made, most_traded = _build_trade_stats(db, our_mp_to_player, players_by_id)
     most_econ_upset_deaths = _build_econ_upset_stats(db, match_ids, our_mp_to_player, players_by_id)
-    most_round_changer = _build_round_changer_stats(db, our_mp_to_player, players_by_id)
     most_spike_deaths = _build_spike_death_stats(db, match_ids, our_mp_to_player, players_by_id)
     post_plant_menace = _build_post_plant_menace_stats(db, match_ids, our_mp_to_player, players_by_id)
     most_ghost_rounds = _build_ghost_stats(db, match_ids, our_mp_to_player, players_by_id)
@@ -337,17 +337,26 @@ def _build_replay_stats(
     session: SessionSummary,
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> tuple[FunStatEntry | None, FunStatEntry | None, FunStatEntry | None, FunStatEntry | None, FunStatEntry | None]:
+) -> tuple[
+    FunStatEntry | None,
+    FunStatEntry | None,
+    FunStatEntry | None,
+    FunStatEntry | None,
+    FunStatEntry | None,
+    FunStatEntry | None,
+]:
     """Replays every round's kill feed in order to derive stats that depend on
     who was alive when: no-death kill streaks, kills on/deaths to each
     match's enemy top/bottom fragger, clutches (won a round while down to 1 or
-    2 alive against an equal-or-larger enemy side), and kills landed in an
-    even-numbers (XvX) fight.
+    2 alive against an equal-or-larger enemy side), kills landed in an
+    even-numbers (XvX) fight, and kills landed while outnumbered (a
+    "round changer" -- turning the tide from a numbers disadvantage).
     """
     kills_on_top_frag: dict[int, int] = {}
     deaths_to_bottom_frag: dict[int, int] = {}
     clutch_counts: dict[int, int] = {}
     xvx_kill_counts: dict[int, int] = {}
+    round_changer_kill_counts: dict[int, int] = {}
 
     current_streak: dict[int, int] = {}
     max_streak: dict[int, int] = {}
@@ -409,6 +418,18 @@ def _build_replay_stats(
                     xvx_player_id = our_mp_to_player[killer_id]
                     xvx_kill_counts[xvx_player_id] = xvx_kill_counts.get(xvx_player_id, 0) + 1
 
+                if (
+                    killer_id is not None
+                    and death_id is not None
+                    and killer_id != death_id
+                    and killer_id in our_mp_to_player
+                    and pre_own_count < pre_opp_count
+                ):
+                    changer_player_id = our_mp_to_player[killer_id]
+                    round_changer_kill_counts[changer_player_id] = (
+                        round_changer_kill_counts.get(changer_player_id, 0) + 1
+                    )
+
                 if killer_id is not None and killer_id in our_mp_to_player:
                     player_id = our_mp_to_player[killer_id]
                     current_streak[player_id] = current_streak.get(player_id, 0) + 1
@@ -448,6 +469,7 @@ def _build_replay_stats(
         _top_entry(deaths_to_bottom_frag, players_by_id),
         _top_entry(clutch_counts, players_by_id),
         _top_entry(xvx_kill_counts, players_by_id),
+        _top_entry(round_changer_kill_counts, players_by_id),
     )
 
 
@@ -570,29 +592,6 @@ def _build_econ_upset_stats(
         upset_death_counts[player_id] = upset_death_counts.get(player_id, 0) + 1
 
     return _top_entry(upset_death_counts, players_by_id)
-
-
-def _build_round_changer_stats(
-    db: Session,
-    our_mp_to_player: dict[int, int],
-    players_by_id: dict[int, str],
-) -> FunStatEntry | None:
-    """Sums the impact scorer's swing_impact breakdown value across the
-    session: whoever's kills/deaths most consistently flip a round's
-    man-advantage state in their team's favor.
-    """
-    rows = (
-        db.query(ImpactScore.match_player_id, ImpactScore.breakdown)
-        .filter(ImpactScore.match_player_id.in_(our_mp_to_player.keys()))
-        .all()
-    )
-    swing_totals: dict[int, int] = {}
-    for match_player_id, breakdown in rows:
-        player_id = our_mp_to_player[match_player_id]
-        breakdown = breakdown or {}
-        swing_totals[player_id] = swing_totals.get(player_id, 0) + breakdown.get("swing_impact", 0)
-
-    return _top_entry(swing_totals, players_by_id)
 
 
 # The scraped source has no distinct "Spike" weapon marker -- a spike detonation
