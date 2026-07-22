@@ -365,7 +365,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                 "killer_match_player_id": kill.killer_match_player_id,
                 "death_match_player_id": kill.death_match_player_id,
                 "event_time_seconds": kill.event_time_seconds,
-                "acs_bonus": (kill.source_meta or {}).get("acs_bonus", 0),
             }
         )
 
@@ -438,6 +437,14 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             death_id = kill["death_match_player_id"]
             self_kill = killer_id == death_id
             killer_team = match_players[killer_id].team
+
+            # Valorant's own combat-score kill-order bonus: 150 for a kill against a
+            # still-full 5-player enemy team, decrementing 20 per further kill landed
+            # against that same team this round, regardless of the killer's own losses.
+            # This has nothing to do with our kill_order_bonus graph below -- it has to
+            # be backed out of the raw ACS number so damages reflects pure damage+assists.
+            victim_team_alive = team1_kill_index if killer_team == Team.TEAM_1 else team2_kill_index
+            kill["acs_bonus"] = 0 if self_kill else max(0, 150 - 20 * (5 - victim_team_alive))
 
             combined_swing_factor = team1_combined_swing if killer_team == Team.TEAM_2 else team2_combined_swing
             kill_order_bonus = _kill_order_bonus(team1_kill_index, team2_kill_index, killer_team, self_kill)
