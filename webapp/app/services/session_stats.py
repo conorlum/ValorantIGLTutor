@@ -69,10 +69,7 @@ class SessionFunStats:
     op_crutch: FunStatEntry | None = None
     most_trades_made: FunStatEntry | None = None
     most_traded: FunStatEntry | None = None
-    most_deaths_to_eco_on_force: FunStatEntry | None = None
-    most_deaths_to_eco_on_full_buy: FunStatEntry | None = None
-    most_deaths_to_save_on_force: FunStatEntry | None = None
-    most_deaths_to_save_on_full_buy: FunStatEntry | None = None
+    most_econ_upset_deaths: FunStatEntry | None = None
 
 
 @dataclass
@@ -240,12 +237,7 @@ def _build_fun_stats(
     )
     round_mvp = _build_round_mvp(db, match_ids, our_mp_to_player, players_by_id)
     most_trades_made, most_traded = _build_trade_stats(db, our_mp_to_player, players_by_id)
-    (
-        most_deaths_to_eco_on_force,
-        most_deaths_to_eco_on_full_buy,
-        most_deaths_to_save_on_force,
-        most_deaths_to_save_on_full_buy,
-    ) = _build_econ_upset_stats(db, match_ids, our_mp_to_player, players_by_id)
+    most_econ_upset_deaths = _build_econ_upset_stats(db, match_ids, our_mp_to_player, players_by_id)
 
     return SessionFunStats(
         biggest_multi_kill=biggest_multi_kill,
@@ -259,10 +251,7 @@ def _build_fun_stats(
         op_crutch=op_crutch,
         most_trades_made=most_trades_made,
         most_traded=most_traded,
-        most_deaths_to_eco_on_force=most_deaths_to_eco_on_force,
-        most_deaths_to_eco_on_full_buy=most_deaths_to_eco_on_full_buy,
-        most_deaths_to_save_on_force=most_deaths_to_save_on_force,
-        most_deaths_to_save_on_full_buy=most_deaths_to_save_on_full_buy,
+        most_econ_upset_deaths=most_econ_upset_deaths,
     )
 
 
@@ -491,13 +480,13 @@ def _build_trade_stats(
     )
 
 
-# (killer's econ tier, victim's econ tier) -> bucket name, for "upset" deaths where a
+# (killer's econ tier, victim's econ tier) pairs counted as an "upset" death: a
 # cheaper-buying enemy killed one of our players on a pricier buy.
-_ECON_UPSET_BUCKETS = {
-    ("ECO", "FORCE"): "eco_force",
-    ("ECO", "FULL_BUY"): "eco_full_buy",
-    ("SAVE", "FORCE"): "save_force",
-    ("SAVE", "FULL_BUY"): "save_full_buy",
+_ECON_UPSET_TIER_PAIRS = {
+    ("ECO", "FORCE"),
+    ("ECO", "FULL_BUY"),
+    ("SAVE", "FORCE"),
+    ("SAVE", "FULL_BUY"),
 }
 
 
@@ -506,7 +495,7 @@ def _build_econ_upset_stats(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> tuple[FunStatEntry | None, FunStatEntry | None, FunStatEntry | None, FunStatEntry | None]:
+) -> FunStatEntry | None:
     """Counts deaths of our players to a cheaper-buying enemy: killer on
     eco/save, victim (one of ours) on force/full buy -- the "upset" death.
     """
@@ -539,17 +528,12 @@ def _build_econ_upset_stats(
         .all()
     )
 
-    bucket_counts: dict[str, dict[int, int]] = {name: {} for name in _ECON_UPSET_BUCKETS.values()}
+    upset_death_counts: dict[int, int] = {}
     for death_mp_id, killer_loadout, victim_loadout in rows:
-        bucket = _ECON_UPSET_BUCKETS.get((econ_tier_name(killer_loadout), econ_tier_name(victim_loadout)))
-        if bucket is None:
+        tier_pair = (econ_tier_name(killer_loadout), econ_tier_name(victim_loadout))
+        if tier_pair not in _ECON_UPSET_TIER_PAIRS:
             continue
         player_id = our_mp_to_player[death_mp_id]
-        bucket_counts[bucket][player_id] = bucket_counts[bucket].get(player_id, 0) + 1
+        upset_death_counts[player_id] = upset_death_counts.get(player_id, 0) + 1
 
-    return (
-        _top_entry(bucket_counts["eco_force"], players_by_id),
-        _top_entry(bucket_counts["eco_full_buy"], players_by_id),
-        _top_entry(bucket_counts["save_force"], players_by_id),
-        _top_entry(bucket_counts["save_full_buy"], players_by_id),
-    )
+    return _top_entry(upset_death_counts, players_by_id)
