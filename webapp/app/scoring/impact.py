@@ -63,7 +63,8 @@ _KILL_ORDER_GRAPH.add_weighted_edges_from(
 )
 
 
-FULL_BUY_THRESHOLD = 3400
+FORCE_THRESHOLD = 3250
+FULL_BUY_THRESHOLD = 4200
 WIN_BONUS = 3000
 SURVIVE_LOSS_BONUS = 1000  # documented for completeness; see _econ_swing_risk_factor
 KILL_REWARD = 200
@@ -73,10 +74,9 @@ PLANT_BONUS = 300
 # Equal weights would reproduce a plain average; these are a starting proposal, not a
 # final tuning -- adjust freely.
 FACTOR_WEIGHTS = {
-    "econ": 1.2,
-    "time": 1.1,
+    "econ": 1.0,
+    "time": 1.0,
     "swing": 1.0,
-    "weapon_denial": 1.1,
 }
 _FACTOR_WEIGHT_TOTAL = sum(FACTOR_WEIGHTS.values())
 
@@ -84,17 +84,11 @@ _FACTOR_WEIGHT_TOTAL = sum(FACTOR_WEIGHTS.values())
 def _categorize_econ(loadout: int) -> int:
     if loadout < 1000:
         return 8  # SAVE
-    if loadout < FULL_BUY_THRESHOLD:
+    if loadout < FORCE_THRESHOLD:
         return 6  # ECON
+    if loadout < FULL_BUY_THRESHOLD:
+        return 5  # FORCE
     return 4  # FULL BUY
-
-
-def _weapon_denial_factor(victim_loadout: int) -> float:
-    if victim_loadout >= FULL_BUY_THRESHOLD:
-        return 1.3
-    if victim_loadout >= 2000:
-        return 1.15
-    return 1.0
 
 
 def _kill_order_bonus(team1_kill_index: int, team2_kill_index: int, kill_team: Team, self_kill: bool) -> float:
@@ -442,7 +436,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             killer_team = match_players[killer_id].team
 
             combined_swing_factor = team1_combined_swing if killer_team == Team.TEAM_2 else team2_combined_swing
-            weapon_denial_factor = _weapon_denial_factor(round_player_stats[round_number][death_id]["loadout"])
             kill_order_bonus = _kill_order_bonus(team1_kill_index, team2_kill_index, killer_team, self_kill)
 
             kill["kill_order_bonus"] = kill_order_bonus if not self_kill else 0
@@ -453,9 +446,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                 kill_order_bonus * _time_factor(round_row, kill["event_time_seconds"]) if not self_kill else 0
             )
             kill["kill_order_bonus_x_swing"] = kill_order_bonus * combined_swing_factor if not self_kill else 0
-            kill["kill_order_bonus_x_weapon_denial"] = (
-                kill_order_bonus * weapon_denial_factor if not self_kill else 0
-            )
 
             death_order_bonus = kill_order_bonus * _traded_factor(kills, kill, self_kill)
             kill["death_order_bonus"] = death_order_bonus
@@ -463,6 +453,8 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             if self_kill:
                 if kill["econ_differential_factor"] == 4:
                     death_econ_factor = 0.9
+                elif kill["econ_differential_factor"] == 5:
+                    death_econ_factor = 0.85
                 elif kill["econ_differential_factor"] == 6:
                     death_econ_factor = 0.75
                 else:
@@ -475,7 +467,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                 round_row, kill["event_time_seconds"], for_death=True
             )
             kill["death_order_bonus_x_swing"] = death_order_bonus * combined_swing_factor
-            kill["death_order_bonus_x_weapon_denial"] = death_order_bonus * weapon_denial_factor
 
             killer_own_alive = team1_kill_index if killer_team == Team.TEAM_1 else team2_kill_index
             killer_opp_alive = team2_kill_index if killer_team == Team.TEAM_1 else team1_kill_index
@@ -508,7 +499,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             kill_order_bonus_x_econ_sum = 0.0
             kill_order_bonus_x_time_sum = 0.0
             kill_order_bonus_x_swing_sum = 0.0
-            kill_order_bonus_x_weapon_denial_sum = 0.0
             kill_factor_sum = 0.0
             kills_in_round = 0
             clutch_kill_sum = 0.0
@@ -523,7 +513,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     kill_order_bonus_x_econ_sum += kill["kill_order_bonus_x_econ"]
                     kill_order_bonus_x_time_sum += kill["kill_order_bonus_x_time"]
                     kill_order_bonus_x_swing_sum += kill["kill_order_bonus_x_swing"]
-                    kill_order_bonus_x_weapon_denial_sum += kill["kill_order_bonus_x_weapon_denial"]
                     if kill["killer_clutch"]:
                         clutch_kill_sum += kill["kill_order_bonus"]
                     if kill["is_post_plant"]:
@@ -538,7 +527,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             death_order_bonus_x_econ_sum = 0.0
             death_order_bonus_x_time_sum = 0.0
             death_order_bonus_x_swing_sum = 0.0
-            death_order_bonus_x_weapon_denial_sum = 0.0
             clutch_death_sum = 0.0
             post_plant_death_sum = 0.0
             econ_mismatch_death_sum = 0.0
@@ -547,7 +535,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     death_order_bonus_x_econ_sum += kill["death_order_bonus_x_econ"]
                     death_order_bonus_x_time_sum += kill["death_order_bonus_x_time"]
                     death_order_bonus_x_swing_sum += kill["death_order_bonus_x_swing"]
-                    death_order_bonus_x_weapon_denial_sum += kill["death_order_bonus_x_weapon_denial"]
                     if kill["victim_clutch"]:
                         clutch_death_sum += kill["death_order_bonus"]
                     if kill["is_post_plant"]:
@@ -563,7 +550,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     FACTOR_WEIGHTS["econ"] * kill_order_bonus_x_econ_sum
                     + FACTOR_WEIGHTS["time"] * kill_order_bonus_x_time_sum
                     + FACTOR_WEIGHTS["swing"] * kill_order_bonus_x_swing_sum
-                    + FACTOR_WEIGHTS["weapon_denial"] * kill_order_bonus_x_weapon_denial_sum
                 )
                 / _FACTOR_WEIGHT_TOTAL
             )
@@ -572,7 +558,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     FACTOR_WEIGHTS["econ"] * death_order_bonus_x_econ_sum
                     + FACTOR_WEIGHTS["time"] * death_order_bonus_x_time_sum
                     + FACTOR_WEIGHTS["swing"] * death_order_bonus_x_swing_sum
-                    + FACTOR_WEIGHTS["weapon_denial"] * death_order_bonus_x_weapon_denial_sum
                 )
                 / _FACTOR_WEIGHT_TOTAL
             )
@@ -583,9 +568,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                 "econ_impact": round(kill_order_bonus_x_econ_sum - death_order_bonus_x_econ_sum),
                 "time_impact": round(kill_order_bonus_x_time_sum - death_order_bonus_x_time_sum),
                 "swing_impact": round(kill_order_bonus_x_swing_sum - death_order_bonus_x_swing_sum),
-                "weapon_denial_impact": round(
-                    kill_order_bonus_x_weapon_denial_sum - death_order_bonus_x_weapon_denial_sum
-                ),
                 "econ_kill": round(econ_mismatch_kill_sum),
                 "econ_death": round(econ_mismatch_death_sum),
                 "clutch_kill": round(clutch_kill_sum),
