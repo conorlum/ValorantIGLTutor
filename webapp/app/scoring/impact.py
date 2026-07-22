@@ -418,6 +418,10 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
     # Kill-order bonuses, decorated per kill.
     for round_number, kills in round_kills.items():
         round_row = rounds_by_number[round_number]
+        # Despite the names, team1_kill_index tracks TEAM_2's alive count and
+        # team2_kill_index tracks TEAM_1's -- each decrements when the *other*
+        # team lands a kill against it. Fixed for the whole round regardless of
+        # which team is killing on a given kill (see the decrement below).
         team1_kill_index = 5
         team2_kill_index = 5
 
@@ -479,8 +483,8 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             )
             kill["death_order_bonus_x_swing"] = death_order_bonus * combined_swing_factor
 
-            killer_own_alive = team1_kill_index if killer_team == Team.TEAM_1 else team2_kill_index
-            killer_opp_alive = team2_kill_index if killer_team == Team.TEAM_1 else team1_kill_index
+            killer_own_alive = team2_kill_index if killer_team == Team.TEAM_1 else team1_kill_index
+            killer_opp_alive = team1_kill_index if killer_team == Team.TEAM_1 else team2_kill_index
             kill["killer_clutch"] = not self_kill and _clutch_bucket(killer_own_alive, killer_opp_alive)
             kill["victim_clutch"] = not self_kill and _clutch_bucket(killer_opp_alive, killer_own_alive)
 
