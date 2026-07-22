@@ -301,7 +301,8 @@ def _build_round_kill_stats(
         .all()
     )
 
-    biggest_multi_kill: FunStatEntry | None = None
+    best_kill_count: int | None = None
+    best_kill_rows: list[tuple[int, int, int]] = []  # (player_id, match_id, round_number)
     multi_kill_counts: dict[int, int] = {}
     eco_kill_counts: dict[int, int] = {}
     op_kill_counts: dict[int, int] = {}
@@ -311,18 +312,18 @@ def _build_round_kill_stats(
 
         if kills >= MULTI_KILL_THRESHOLD:
             multi_kill_counts[player_id] = multi_kill_counts.get(player_id, 0) + 1
-        if biggest_multi_kill is None or kills > biggest_multi_kill.value:
-            biggest_multi_kill = FunStatEntry(
-                display_name=players_by_id.get(player_id, "?"),
-                value=kills,
-                match_id=match_id,
-                round_number=round_number,
-            )
+        if best_kill_count is None or kills > best_kill_count:
+            best_kill_count = kills
+            best_kill_rows = [(player_id, match_id, round_number)]
+        elif kills == best_kill_count:
+            best_kill_rows.append((player_id, match_id, round_number))
 
         if loadout < FORCE_THRESHOLD:
             eco_kill_counts[player_id] = eco_kill_counts.get(player_id, 0) + kills
         if loadout >= OP_LOADOUT_THRESHOLD:
             op_kill_counts[player_id] = op_kill_counts.get(player_id, 0) + kills
+
+    biggest_multi_kill = _build_biggest_multi_kill_entry(best_kill_count, best_kill_rows, players_by_id)
 
     return (
         biggest_multi_kill,
@@ -330,6 +331,32 @@ def _build_round_kill_stats(
         _top_entry(eco_kill_counts, players_by_id),
         _top_entry(op_kill_counts, players_by_id),
     )
+
+
+def _build_biggest_multi_kill_entry(
+    best_kill_count: int | None,
+    best_kill_rows: list[tuple[int, int, int]],
+    players_by_id: dict[int, str],
+) -> FunStatEntry | None:
+    """If a single player holds the session's top single-round kill count
+    outright, name that round/map. If 2+ players tied for it, name them all
+    instead -- a specific round/map wouldn't be meaningful for a tie.
+    """
+    if best_kill_count is None or not best_kill_rows:
+        return None
+
+    distinct_player_ids = list(dict.fromkeys(pid for pid, _, _ in best_kill_rows))
+    if len(distinct_player_ids) == 1:
+        player_id, match_id, round_number = best_kill_rows[0]
+        return FunStatEntry(
+            display_name=players_by_id.get(player_id, "?"),
+            value=best_kill_count,
+            match_id=match_id,
+            round_number=round_number,
+        )
+
+    names = [players_by_id.get(pid, "?").split("#", 1)[0] for pid in sorted(distinct_player_ids, key=lambda pid: players_by_id.get(pid, "?"))]
+    return FunStatEntry(display_name=", ".join(names), value=best_kill_count)
 
 
 def _build_replay_stats(
