@@ -353,7 +353,11 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
 
     round_kills: dict[int, list[dict]] = defaultdict(list)
     for kill in (
-        db.query(KillEvent).join(Round).filter(Round.match_id == match_id).order_by(KillEvent.id).all()
+        db.query(KillEvent)
+        .join(Round)
+        .filter(Round.match_id == match_id)
+        .order_by(KillEvent.event_time_seconds, KillEvent.id)
+        .all()
     ):
         round_number = round_number_by_round_id[kill.round_id]
         round_kills[round_number].append(
@@ -499,7 +503,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             kill_order_bonus_x_econ_sum = 0.0
             kill_order_bonus_x_time_sum = 0.0
             kill_order_bonus_x_swing_sum = 0.0
-            kill_factor_sum = 0.0
             kills_in_round = 0
             clutch_kill_sum = 0.0
             post_plant_kill_sum = 0.0
@@ -508,7 +511,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
             for kill in kills:
                 if kill["killer_match_player_id"] == match_player_id:
                     acs -= kill["acs_bonus"]
-                    kill_factor_sum += kill["econ_differential_factor"]
                     kills_in_round += 1
                     kill_order_bonus_x_econ_sum += kill["kill_order_bonus_x_econ"]
                     kill_order_bonus_x_time_sum += kill["kill_order_bonus_x_time"]
@@ -522,7 +524,6 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
 
             adjust_acs_for_multikill = -50 * kills_in_round if kills_in_round > 1 else 0
             damage_and_assists = acs - adjust_acs_for_multikill
-            kill_factor_average = kill_factor_sum / (kills_in_round if kills_in_round else 1)
 
             death_order_bonus_x_econ_sum = 0.0
             death_order_bonus_x_time_sum = 0.0
@@ -542,8 +543,7 @@ def compute_impact_for_match(db: Session, match_id: int) -> None:
                     if kill["econ_mismatch"]:
                         econ_mismatch_death_sum += kill["death_order_bonus_x_econ"]
 
-            kill_factor = kill_factor_average if kill_factor_average != 0 else 1
-            damages = round(damage_and_assists * kill_factor * 1.25)
+            damages = round(damage_and_assists * 1.25)
             kill_impact = round(
                 damages
                 + (
