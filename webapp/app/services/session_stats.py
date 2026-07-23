@@ -11,6 +11,10 @@ MULTI_KILL_THRESHOLD = 3
 # Operator (4700) + at minimum light shields (400): a round where the player
 # clearly bought (and presumably played) an Operator.
 OP_LOADOUT_THRESHOLD = 5100
+# event_time_seconds is round-relative (0 = round start); an "entry" kill lands
+# in this opening window, a "late" kill lands at/after this mark.
+ENTRY_KILL_WINDOW_SECONDS = 20
+LATE_KILL_MARK_SECONDS = 60
 
 
 @dataclass
@@ -76,6 +80,10 @@ class SessionFunStats:
     most_spike_deaths: FunStatEntry | None = None
     post_plant_menace: FunStatEntry | None = None
     most_ghost_rounds: FunStatEntry | None = None
+    most_entry_kills: FunStatEntry | None = None
+    most_late_round_kills: FunStatEntry | None = None
+    most_first_deaths_in_losses: FunStatEntry | None = None
+    most_last_alive_in_wipes: FunStatEntry | None = None
 
 
 @dataclass
@@ -255,6 +263,8 @@ def _build_fun_stats(
         most_clutches,
         most_xvx_kills,
         most_round_changer,
+        most_first_deaths_in_losses,
+        most_last_alive_in_wipes,
     ) = _build_replay_stats(db, session, our_mp_to_player, players_by_id)
     round_mvp = _build_round_mvp(db, match_ids, our_mp_to_player, players_by_id)
     most_trades_made, most_traded = _build_trade_stats(db, our_mp_to_player, players_by_id)
@@ -262,6 +272,8 @@ def _build_fun_stats(
     most_spike_deaths = _build_spike_death_stats(db, match_ids, our_mp_to_player, players_by_id)
     post_plant_menace = _build_post_plant_menace_stats(db, match_ids, our_mp_to_player, players_by_id)
     most_ghost_rounds = _build_ghost_stats(db, match_ids, our_mp_to_player, players_by_id)
+    most_entry_kills = _build_entry_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
+    most_late_round_kills = _build_late_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
 
     return SessionFunStats(
         biggest_multi_kill=biggest_multi_kill,
@@ -281,6 +293,10 @@ def _build_fun_stats(
         most_spike_deaths=most_spike_deaths,
         post_plant_menace=post_plant_menace,
         most_ghost_rounds=most_ghost_rounds,
+        most_entry_kills=most_entry_kills,
+        most_late_round_kills=most_late_round_kills,
+        most_first_deaths_in_losses=most_first_deaths_in_losses,
+        most_last_alive_in_wipes=most_last_alive_in_wipes,
     )
 
 
@@ -382,19 +398,25 @@ def _build_replay_stats(
     FunStatEntry | None,
     FunStatEntry | None,
     FunStatEntry | None,
+    FunStatEntry | None,
+    FunStatEntry | None,
 ]:
     """Replays every round's kill feed in order to derive stats that depend on
     who was alive when: no-death kill streaks, kills on/deaths to each
     match's enemy top/bottom fragger, clutches (won a round while down to 1 or
     2 alive against an equal-or-larger enemy side), kills landed in an
-    even-numbers (XvX) fight, and kills landed while outnumbered (a
-    "round changer" -- turning the tide from a numbers disadvantage).
+    even-numbers (XvX) fight, kills landed while outnumbered (a "round
+    changer" -- turning the tide from a numbers disadvantage), who died first
+    (of ours) in rounds we lost, and who was the last of ours standing (before
+    also dying) in rounds where our whole 5-stack got wiped.
     """
     kills_on_top_frag: dict[int, int] = {}
     deaths_to_bottom_frag: dict[int, int] = {}
     clutch_counts: dict[int, int] = {}
     xvx_kill_counts: dict[int, int] = {}
     round_changer_kill_counts: dict[int, int] = {}
+    first_death_in_loss_counts: dict[int, int] = {}
+    last_alive_in_wipe_counts: dict[int, int] = {}
 
     current_streak: dict[int, int] = {}
     max_streak: dict[int, int] = {}
@@ -433,6 +455,7 @@ def _build_replay_stats(
             # outnumbered-or-even at 1 or 2 alive -- the clutch situation, if any,
             # this round resolved from.
             clutch_state: tuple[int, int, frozenset[int]] | None = None
+            first_own_death_id: int | None = None
 
             events = (
                 db.query(KillEvent)
@@ -484,6 +507,9 @@ def _build_replay_stats(
                     if opp_bottom_frag_mp_id is not None and killer_id == opp_bottom_frag_mp_id:
                         deaths_to_bottom_frag[player_id] = deaths_to_bottom_frag.get(player_id, 0) + 1
 
+                    if first_own_death_id is None:
+                        first_own_death_id = death_id
+
                 alive_own.discard(death_id)
                 alive_opp.discard(death_id)
 
@@ -491,6 +517,17 @@ def _build_replay_stats(
                 if own_count in (1, 2) and opp_count >= own_count:
                     if clutch_state is None or own_count < clutch_state[0]:
                         clutch_state = (own_count, opp_count, frozenset(alive_own))
+
+                if (
+                    own_count == 0
+                    and len(own_mp_ids) == 5
+                    and death_id is not None
+                    and death_id in our_mp_to_player
+                ):
+                    last_player_id = our_mp_to_player[death_id]
+                    last_alive_in_wipe_counts[last_player_id] = (
+                        last_alive_in_wipe_counts.get(last_player_id, 0) + 1
+                    )
 
                 if own_count == 0 or opp_count == 0:
                     break
@@ -501,6 +538,12 @@ def _build_replay_stats(
                     player_id = our_mp_to_player[mp_id]
                     clutch_counts[player_id] = clutch_counts.get(player_id, 0) + 1
 
+            if our_side is not None and not round_won_by_us and first_own_death_id is not None:
+                first_death_player_id = our_mp_to_player[first_own_death_id]
+                first_death_in_loss_counts[first_death_player_id] = (
+                    first_death_in_loss_counts.get(first_death_player_id, 0) + 1
+                )
+
     return (
         _top_entry(max_streak, players_by_id),
         _top_entry(kills_on_top_frag, players_by_id),
@@ -508,6 +551,8 @@ def _build_replay_stats(
         _top_entry(clutch_counts, players_by_id),
         _top_entry(xvx_kill_counts, players_by_id),
         _top_entry(round_changer_kill_counts, players_by_id),
+        _top_entry(first_death_in_loss_counts, players_by_id),
+        _top_entry(last_alive_in_wipe_counts, players_by_id),
     )
 
 
@@ -632,11 +677,12 @@ def _build_econ_upset_stats(
     return _top_entry(upset_death_counts, players_by_id)
 
 
-# The scraped source has no distinct "Spike" weapon marker -- a spike detonation
-# death is classified the same as other no-weapon-icon deaths (e.g. fall damage).
-# "Environmental" is the closest available proxy and in practice is overwhelmingly
-# spike deaths.
-SPIKE_DEATH_WEAPON = "Environmental"
+# Spike detonation deaths aren't always labeled with a distinct "Spike" weapon
+# marker -- sometimes a detonation death is classified the same as other
+# no-weapon-icon deaths (e.g. fall damage), where "Environmental" is the
+# closest available proxy and in practice is overwhelmingly spike deaths.
+# Other times it's labeled distinctly, e.g. as "Bomb".
+SPIKE_DEATH_WEAPONS = {"Environmental", "Bomb"}
 
 
 def _build_spike_death_stats(
@@ -650,7 +696,7 @@ def _build_spike_death_stats(
         .join(Round, Round.id == KillEvent.round_id)
         .filter(
             Round.match_id.in_(match_ids),
-            KillEvent.weapon == SPIKE_DEATH_WEAPON,
+            KillEvent.weapon.in_(SPIKE_DEATH_WEAPONS),
             KillEvent.death_match_player_id.in_(our_mp_to_player.keys()),
         )
         .all()
@@ -688,6 +734,58 @@ def _build_post_plant_menace_stats(
         post_plant_kill_counts[player_id] = post_plant_kill_counts.get(player_id, 0) + 1
 
     return _top_entry(post_plant_kill_counts, players_by_id)
+
+
+def _build_entry_kill_stats(
+    db: Session,
+    match_ids: list[int],
+    our_mp_to_player: dict[int, int],
+    players_by_id: dict[int, str],
+) -> FunStatEntry | None:
+    """Kills landed within the round's opening ENTRY_KILL_WINDOW_SECONDS."""
+    rows = (
+        db.query(KillEvent.killer_match_player_id)
+        .join(Round, Round.id == KillEvent.round_id)
+        .filter(
+            Round.match_id.in_(match_ids),
+            KillEvent.event_time_seconds <= ENTRY_KILL_WINDOW_SECONDS,
+            KillEvent.killer_match_player_id.in_(our_mp_to_player.keys()),
+            KillEvent.killer_match_player_id != KillEvent.death_match_player_id,
+        )
+        .all()
+    )
+    entry_kill_counts: dict[int, int] = {}
+    for (killer_mp_id,) in rows:
+        player_id = our_mp_to_player[killer_mp_id]
+        entry_kill_counts[player_id] = entry_kill_counts.get(player_id, 0) + 1
+
+    return _top_entry(entry_kill_counts, players_by_id)
+
+
+def _build_late_kill_stats(
+    db: Session,
+    match_ids: list[int],
+    our_mp_to_player: dict[int, int],
+    players_by_id: dict[int, str],
+) -> FunStatEntry | None:
+    """Kills landed at/after the round's LATE_KILL_MARK_SECONDS mark."""
+    rows = (
+        db.query(KillEvent.killer_match_player_id)
+        .join(Round, Round.id == KillEvent.round_id)
+        .filter(
+            Round.match_id.in_(match_ids),
+            KillEvent.event_time_seconds >= LATE_KILL_MARK_SECONDS,
+            KillEvent.killer_match_player_id.in_(our_mp_to_player.keys()),
+            KillEvent.killer_match_player_id != KillEvent.death_match_player_id,
+        )
+        .all()
+    )
+    late_kill_counts: dict[int, int] = {}
+    for (killer_mp_id,) in rows:
+        player_id = our_mp_to_player[killer_mp_id]
+        late_kill_counts[player_id] = late_kill_counts.get(player_id, 0) + 1
+
+    return _top_entry(late_kill_counts, players_by_id)
 
 
 def _build_ghost_stats(
