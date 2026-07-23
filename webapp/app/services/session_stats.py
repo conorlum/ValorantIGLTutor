@@ -677,12 +677,11 @@ def _build_econ_upset_stats(
     return _top_entry(upset_death_counts, players_by_id)
 
 
-# Spike detonation deaths are labeled differently depending on ingestion source.
-# The scraped source (matchDataPipeline.py) has no distinct "Spike" weapon marker,
-# so a detonation death is classified the same as other no-weapon-icon deaths (e.g.
-# fall damage) -- "Environmental" is the closest available proxy there, and in
-# practice is overwhelmingly spike deaths. Other sources may label it distinctly,
-# e.g. as "Bomb".
+# Spike detonation deaths aren't always labeled with a distinct "Spike" weapon
+# marker -- sometimes a detonation death is classified the same as other
+# no-weapon-icon deaths (e.g. fall damage), where "Environmental" is the
+# closest available proxy and in practice is overwhelmingly spike deaths.
+# Other times it's labeled distinctly, e.g. as "Bomb".
 SPIKE_DEATH_WEAPONS = {"Environmental", "Bomb"}
 
 
