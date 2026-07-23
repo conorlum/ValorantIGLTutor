@@ -198,7 +198,7 @@
     <tbody>
       {% for row in stats.kda_rows %}
       <tr>
-        <td>{{ row.display_name | strip_tag }}</td>
+        <td><a href="/players/{{ row.display_name | urlencode }}">{{ row.display_name | strip_tag }}</a></td>
         <td>{{ row.total_label }}</td>
         {% for match in session.matches %}
         <td>{% if match.id in row.by_match %}{{ row.by_match[match.id].label }}{% else %}&mdash;{% endif %}</td>
