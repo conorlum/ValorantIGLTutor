@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session, aliased
 
 from app.models import ImpactScore, KillEvent, MatchPlayer, Player, Round, RoundPlayerStat
 from app.scoring.impact import FORCE_THRESHOLD, econ_tier_name
+from app.services.friends import list_friend_ids
 from app.services.player_graphs import StateDiagram, build_session_round_win_diagram
+from app.services.shoutouts import PlayerShoutout, assign_shoutouts
 from app.services.sessions import SessionSummary
 
 MULTI_KILL_THRESHOLD = 3
@@ -92,9 +94,12 @@ class SessionStats:
     kda_rows: list[KdaRow]
     round_win_diagram: StateDiagram
     fun_stats: SessionFunStats
+    shoutouts: list[PlayerShoutout]
 
 
-def get_session_stats(db: Session, session: SessionSummary) -> SessionStats:
+def get_session_stats(
+    db: Session, session: SessionSummary, viewer_player_id: int | None = None
+) -> SessionStats:
     match_ids = [m.id for m in session.matches]
     roster_player_ids = session.roster_player_ids
 
@@ -106,6 +111,7 @@ def get_session_stats(db: Session, session: SessionSummary) -> SessionStats:
             kda_rows=[],
             round_win_diagram=round_win_diagram,
             fun_stats=SessionFunStats(),
+            shoutouts=[],
         )
 
     players_by_id = {p.id: p.display_name for p in db.query(Player).all()}
@@ -120,13 +126,19 @@ def get_session_stats(db: Session, session: SessionSummary) -> SessionStats:
 
     leaderboard = _build_leaderboard(db, our_mp_to_player, players_by_id, session.team_by_match)
     kda_rows = _build_kda_rows(db, match_ids, our_mp_to_player, players_by_id)
-    fun_stats = _build_fun_stats(db, session, our_mp_to_player, players_by_id)
+    biggest_multi_kill, raw_counts = _compute_raw_session_counts(db, session, our_mp_to_player, players_by_id)
+    fun_stats = _build_fun_stats(db, session, our_mp_to_player, players_by_id, biggest_multi_kill, raw_counts)
+    shoutouts = _build_shoutouts(raw_counts, leaderboard, players_by_id)
+    if viewer_player_id is not None:
+        friend_ids = list_friend_ids(db, viewer_player_id) | {viewer_player_id}
+        shoutouts = [s for s in shoutouts if s.player_id in friend_ids]
 
     return SessionStats(
         leaderboard=leaderboard,
         kda_rows=kda_rows,
         round_win_diagram=round_win_diagram,
         fun_stats=fun_stats,
+        shoutouts=shoutouts,
     )
 
 
@@ -245,58 +257,122 @@ def _top_entry(counts: dict[int, int], players_by_id: dict[int, str]) -> FunStat
     return entry
 
 
+@dataclass
+class _RawSessionCounts:
+    """Raw per-player counts behind the Fun Stats tiles, kept around (rather
+    than immediately collapsed to a single winner) so the Shoutouts builder
+    can also draw from the exact same numbers.
+    """
+
+    multi_kill_counts: dict[int, int]
+    eco_kill_counts: dict[int, int]
+    op_kill_counts: dict[int, int]
+    max_streak: dict[int, int]
+    kills_on_top_frag: dict[int, int]
+    deaths_to_bottom_frag: dict[int, int]
+    clutch_counts: dict[int, int]
+    xvx_kill_counts: dict[int, int]
+    round_changer_kill_counts: dict[int, int]
+    first_death_in_loss_counts: dict[int, int]
+    last_alive_in_wipe_counts: dict[int, int]
+    mvp_counts: dict[int, int]
+    best_round_impact: dict[int, tuple[float, int, int]]
+    traded_teammate_totals: dict[int, int]
+    traded_by_teammate_totals: dict[int, int]
+    post_plant_kill_counts: dict[int, int]
+    entry_kill_counts: dict[int, int]
+    late_kill_counts: dict[int, int]
+
+
+def _compute_raw_session_counts(
+    db: Session,
+    session: SessionSummary,
+    our_mp_to_player: dict[int, int],
+    players_by_id: dict[int, str],
+) -> tuple[FunStatEntry | None, _RawSessionCounts]:
+    """Runs every per-player replay/aggregation query for the session once.
+    Returns the biggest-multi-kill entry separately (it needs tie-handling
+    that doesn't fit the raw-counts shape) alongside the raw counts bundle.
+    """
+    match_ids = [m.id for m in session.matches]
+
+    biggest_multi_kill, multi_kill_counts, eco_kill_counts, op_kill_counts = _build_round_kill_stats(
+        db, match_ids, our_mp_to_player, players_by_id
+    )
+    (
+        max_streak,
+        kills_on_top_frag,
+        deaths_to_bottom_frag,
+        clutch_counts,
+        xvx_kill_counts,
+        round_changer_kill_counts,
+        first_death_in_loss_counts,
+        last_alive_in_wipe_counts,
+    ) = _build_replay_stats(db, session, our_mp_to_player, players_by_id)
+    mvp_counts, best_round_impact = _build_round_mvp(db, match_ids, our_mp_to_player, players_by_id)
+    traded_teammate_totals, traded_by_teammate_totals = _build_trade_stats(db, our_mp_to_player, players_by_id)
+    post_plant_kill_counts = _build_post_plant_menace_stats(db, match_ids, our_mp_to_player, players_by_id)
+    entry_kill_counts = _build_entry_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
+    late_kill_counts = _build_late_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
+
+    return biggest_multi_kill, _RawSessionCounts(
+        multi_kill_counts=multi_kill_counts,
+        eco_kill_counts=eco_kill_counts,
+        op_kill_counts=op_kill_counts,
+        max_streak=max_streak,
+        kills_on_top_frag=kills_on_top_frag,
+        deaths_to_bottom_frag=deaths_to_bottom_frag,
+        clutch_counts=clutch_counts,
+        xvx_kill_counts=xvx_kill_counts,
+        round_changer_kill_counts=round_changer_kill_counts,
+        first_death_in_loss_counts=first_death_in_loss_counts,
+        last_alive_in_wipe_counts=last_alive_in_wipe_counts,
+        mvp_counts=mvp_counts,
+        best_round_impact=best_round_impact,
+        traded_teammate_totals=traded_teammate_totals,
+        traded_by_teammate_totals=traded_by_teammate_totals,
+        post_plant_kill_counts=post_plant_kill_counts,
+        entry_kill_counts=entry_kill_counts,
+        late_kill_counts=late_kill_counts,
+    )
+
+
 def _build_fun_stats(
     db: Session,
     session: SessionSummary,
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
+    biggest_multi_kill: FunStatEntry | None,
+    raw: _RawSessionCounts,
 ) -> SessionFunStats:
     match_ids = [m.id for m in session.matches]
 
-    biggest_multi_kill, most_multi_kills, eco_frags, op_crutch = _build_round_kill_stats(
-        db, match_ids, our_mp_to_player, players_by_id
-    )
-    (
-        longest_kill_streak,
-        most_kills_on_enemy_top_frag,
-        most_deaths_to_enemy_bottom_frag,
-        most_clutches,
-        most_xvx_kills,
-        most_round_changer,
-        most_first_deaths_in_losses,
-        most_last_alive_in_wipes,
-    ) = _build_replay_stats(db, session, our_mp_to_player, players_by_id)
-    round_mvp = _build_round_mvp(db, match_ids, our_mp_to_player, players_by_id)
-    most_trades_made, most_traded = _build_trade_stats(db, our_mp_to_player, players_by_id)
     most_econ_upset_deaths = _build_econ_upset_stats(db, match_ids, our_mp_to_player, players_by_id)
     most_spike_deaths = _build_spike_death_stats(db, match_ids, our_mp_to_player, players_by_id)
-    post_plant_menace = _build_post_plant_menace_stats(db, match_ids, our_mp_to_player, players_by_id)
     most_ghost_rounds = _build_ghost_stats(db, match_ids, our_mp_to_player, players_by_id)
-    most_entry_kills = _build_entry_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
-    most_late_round_kills = _build_late_kill_stats(db, match_ids, our_mp_to_player, players_by_id)
 
     return SessionFunStats(
         biggest_multi_kill=biggest_multi_kill,
-        longest_kill_streak=longest_kill_streak,
-        most_multi_kills=most_multi_kills,
-        most_kills_on_enemy_top_frag=most_kills_on_enemy_top_frag,
-        most_deaths_to_enemy_bottom_frag=most_deaths_to_enemy_bottom_frag,
-        most_clutches=most_clutches,
-        round_mvp=round_mvp,
-        eco_frags=eco_frags,
-        op_crutch=op_crutch,
-        most_trades_made=most_trades_made,
-        most_traded=most_traded,
+        longest_kill_streak=_top_entry(raw.max_streak, players_by_id),
+        most_multi_kills=_top_entry(raw.multi_kill_counts, players_by_id),
+        most_kills_on_enemy_top_frag=_top_entry(raw.kills_on_top_frag, players_by_id),
+        most_deaths_to_enemy_bottom_frag=_top_entry(raw.deaths_to_bottom_frag, players_by_id),
+        most_clutches=_top_entry(raw.clutch_counts, players_by_id),
+        round_mvp=_top_entry(raw.mvp_counts, players_by_id),
+        eco_frags=_top_entry(raw.eco_kill_counts, players_by_id),
+        op_crutch=_top_entry(raw.op_kill_counts, players_by_id),
+        most_trades_made=_top_entry(raw.traded_teammate_totals, players_by_id),
+        most_traded=_top_entry(raw.traded_by_teammate_totals, players_by_id),
         most_econ_upset_deaths=most_econ_upset_deaths,
-        most_round_changer=most_round_changer,
-        most_xvx_kills=most_xvx_kills,
+        most_round_changer=_top_entry(raw.round_changer_kill_counts, players_by_id),
+        most_xvx_kills=_top_entry(raw.xvx_kill_counts, players_by_id),
         most_spike_deaths=most_spike_deaths,
-        post_plant_menace=post_plant_menace,
+        post_plant_menace=_top_entry(raw.post_plant_kill_counts, players_by_id),
         most_ghost_rounds=most_ghost_rounds,
-        most_entry_kills=most_entry_kills,
-        most_late_round_kills=most_late_round_kills,
-        most_first_deaths_in_losses=most_first_deaths_in_losses,
-        most_last_alive_in_wipes=most_last_alive_in_wipes,
+        most_entry_kills=_top_entry(raw.entry_kill_counts, players_by_id),
+        most_late_round_kills=_top_entry(raw.late_kill_counts, players_by_id),
+        most_first_deaths_in_losses=_top_entry(raw.first_death_in_loss_counts, players_by_id),
+        most_last_alive_in_wipes=_top_entry(raw.last_alive_in_wipe_counts, players_by_id),
     )
 
 
@@ -305,12 +381,14 @@ def _build_round_kill_stats(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> tuple[FunStatEntry | None, FunStatEntry | None, FunStatEntry | None, FunStatEntry | None]:
+) -> tuple[FunStatEntry | None, dict[int, int], dict[int, int], dict[int, int]]:
     """Per-round kill counts (+ that round's loadout) for our players.
 
-    Drives: biggest single-round multi-kill, count of 3+ kill rounds, kills
-    landed while on an eco/save buy, and kills landed while carrying an
-    Operator-tier loadout.
+    Drives: biggest single-round multi-kill (returned directly, since it needs
+    the tie-handling in `_build_biggest_multi_kill_entry`), plus raw per-player
+    counts of 3+ kill rounds, kills landed while on an eco/save buy, and kills
+    landed while carrying an Operator-tier loadout (returned raw so the
+    Shoutouts builder can also draw from them).
     """
     rows = (
         db.query(
@@ -352,12 +430,7 @@ def _build_round_kill_stats(
 
     biggest_multi_kill = _build_biggest_multi_kill_entry(best_kill_count, best_kill_rows, players_by_id)
 
-    return (
-        biggest_multi_kill,
-        _top_entry(multi_kill_counts, players_by_id),
-        _top_entry(eco_kill_counts, players_by_id),
-        _top_entry(op_kill_counts, players_by_id),
-    )
+    return (biggest_multi_kill, multi_kill_counts, eco_kill_counts, op_kill_counts)
 
 
 def _build_biggest_multi_kill_entry(
@@ -392,14 +465,14 @@ def _build_replay_stats(
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
 ) -> tuple[
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
-    FunStatEntry | None,
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
+    dict[int, int],
 ]:
     """Replays every round's kill feed in order to derive stats that depend on
     who was alive when: no-death kill streaks, kills on/deaths to each
@@ -545,14 +618,14 @@ def _build_replay_stats(
                 )
 
     return (
-        _top_entry(max_streak, players_by_id),
-        _top_entry(kills_on_top_frag, players_by_id),
-        _top_entry(deaths_to_bottom_frag, players_by_id),
-        _top_entry(clutch_counts, players_by_id),
-        _top_entry(xvx_kill_counts, players_by_id),
-        _top_entry(round_changer_kill_counts, players_by_id),
-        _top_entry(first_death_in_loss_counts, players_by_id),
-        _top_entry(last_alive_in_wipe_counts, players_by_id),
+        max_streak,
+        kills_on_top_frag,
+        deaths_to_bottom_frag,
+        clutch_counts,
+        xvx_kill_counts,
+        round_changer_kill_counts,
+        first_death_in_loss_counts,
+        last_alive_in_wipe_counts,
     )
 
 
@@ -561,21 +634,37 @@ def _build_round_mvp(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> FunStatEntry | None:
+) -> tuple[dict[int, int], dict[int, tuple[float, int, int]]]:
     """Counts, for every round in the session (both teams), how often one of
-    our players had the single highest Impact score of anyone in that round.
+    our players had the single highest Impact score of anyone in that round
+    -- and separately, for our own players only, each one's single best
+    Impact round of the session (value, match_id, round_number), used as a
+    Shoutouts fallback ("Highlight Reel").
     """
     rows = (
-        db.query(ImpactScore.round_id, ImpactScore.match_player_id, ImpactScore.impact)
+        db.query(
+            ImpactScore.round_id,
+            ImpactScore.match_player_id,
+            ImpactScore.impact,
+            Round.match_id,
+            Round.round_number,
+        )
         .join(Round, Round.id == ImpactScore.round_id)
         .filter(Round.match_id.in_(match_ids))
         .all()
     )
     best_by_round: dict[int, tuple[int, float]] = {}
-    for round_id, match_player_id, impact in rows:
+    best_round_impact: dict[int, tuple[float, int, int]] = {}
+    for round_id, match_player_id, impact, match_id, round_number in rows:
         current = best_by_round.get(round_id)
         if current is None or impact > current[1]:
             best_by_round[round_id] = (match_player_id, impact)
+
+        player_id = our_mp_to_player.get(match_player_id)
+        if player_id is not None:
+            current_best = best_round_impact.get(player_id)
+            if current_best is None or impact > current_best[0]:
+                best_round_impact[player_id] = (impact, match_id, round_number)
 
     mvp_counts: dict[int, int] = {}
     for match_player_id, _impact in best_by_round.values():
@@ -583,14 +672,14 @@ def _build_round_mvp(
         if player_id is not None:
             mvp_counts[player_id] = mvp_counts.get(player_id, 0) + 1
 
-    return _top_entry(mvp_counts, players_by_id)
+    return mvp_counts, best_round_impact
 
 
 def _build_trade_stats(
     db: Session,
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> tuple[FunStatEntry | None, FunStatEntry | None]:
+) -> tuple[dict[int, int], dict[int, int]]:
     """Sums the impact scorer's traded_teammate/traded_by_teammate breakdown
     counts across the session: who avenged a teammate's death most (traded
     the most), and who got avenged the most (got traded the most).
@@ -612,10 +701,7 @@ def _build_trade_stats(
             player_id, 0
         ) + breakdown.get("traded_by_teammate", 0)
 
-    return (
-        _top_entry(traded_teammate_totals, players_by_id),
-        _top_entry(traded_by_teammate_totals, players_by_id),
-    )
+    return (traded_teammate_totals, traded_by_teammate_totals)
 
 
 # (killer's econ tier, victim's econ tier) pairs counted as an "upset" death: a
@@ -714,7 +800,7 @@ def _build_post_plant_menace_stats(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> FunStatEntry | None:
+) -> dict[int, int]:
     rows = (
         db.query(KillEvent.killer_match_player_id)
         .join(Round, Round.id == KillEvent.round_id)
@@ -733,7 +819,7 @@ def _build_post_plant_menace_stats(
         player_id = our_mp_to_player[killer_mp_id]
         post_plant_kill_counts[player_id] = post_plant_kill_counts.get(player_id, 0) + 1
 
-    return _top_entry(post_plant_kill_counts, players_by_id)
+    return post_plant_kill_counts
 
 
 def _build_entry_kill_stats(
@@ -741,7 +827,7 @@ def _build_entry_kill_stats(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> FunStatEntry | None:
+) -> dict[int, int]:
     """Kills landed within the round's opening ENTRY_KILL_WINDOW_SECONDS."""
     rows = (
         db.query(KillEvent.killer_match_player_id)
@@ -759,7 +845,7 @@ def _build_entry_kill_stats(
         player_id = our_mp_to_player[killer_mp_id]
         entry_kill_counts[player_id] = entry_kill_counts.get(player_id, 0) + 1
 
-    return _top_entry(entry_kill_counts, players_by_id)
+    return entry_kill_counts
 
 
 def _build_late_kill_stats(
@@ -767,7 +853,7 @@ def _build_late_kill_stats(
     match_ids: list[int],
     our_mp_to_player: dict[int, int],
     players_by_id: dict[int, str],
-) -> FunStatEntry | None:
+) -> dict[int, int]:
     """Kills landed at/after the round's LATE_KILL_MARK_SECONDS mark."""
     rows = (
         db.query(KillEvent.killer_match_player_id)
@@ -785,7 +871,7 @@ def _build_late_kill_stats(
         player_id = our_mp_to_player[killer_mp_id]
         late_kill_counts[player_id] = late_kill_counts.get(player_id, 0) + 1
 
-    return _top_entry(late_kill_counts, players_by_id)
+    return late_kill_counts
 
 
 def _build_ghost_stats(
@@ -815,3 +901,45 @@ def _build_ghost_stats(
         ghost_round_counts[player_id] = ghost_round_counts.get(player_id, 0) + 1
 
     return _top_entry(ghost_round_counts, players_by_id)
+
+
+def _build_shoutouts(
+    raw: _RawSessionCounts,
+    leaderboard: list[LeaderboardEntry],
+    players_by_id: dict[int, str],
+) -> list[PlayerShoutout]:
+    """Gives every player on the session roster exactly one flattering,
+    individual callout -- unlike Fun Stats, which only ever names a single
+    session-wide winner per category. See `app.services.shoutouts` for the
+    assignment algorithm; this just adapts the session's raw counts and
+    leaderboard into the shape it expects.
+    """
+    raw_dicts: dict[str, dict[int, int]] = {
+        "entry_kill_counts": raw.entry_kill_counts,
+        "clutch_counts": raw.clutch_counts,
+        "post_plant_kill_counts": raw.post_plant_kill_counts,
+        "multi_kill_counts": raw.multi_kill_counts,
+        "max_streak": raw.max_streak,
+        "round_changer_kill_counts": raw.round_changer_kill_counts,
+        "xvx_kill_counts": raw.xvx_kill_counts,
+        "kills_on_top_frag": raw.kills_on_top_frag,
+        "late_kill_counts": raw.late_kill_counts,
+        "op_kill_counts": raw.op_kill_counts,
+        "eco_kill_counts": raw.eco_kill_counts,
+        "traded_teammate_totals": raw.traded_teammate_totals,
+        "traded_by_teammate_totals": raw.traded_by_teammate_totals,
+        "mvp_counts": raw.mvp_counts,
+    }
+    best_single_round_impact = {pid: impact for pid, (impact, _match_id, _round_number) in raw.best_round_impact.items()}
+
+    anchor = None
+    if leaderboard:
+        leader = leaderboard[0]
+        anchor = (
+            leader.player_id,
+            "Anchor of the Session",
+            f"led the roster with {round(leader.average_impact)} avg Impact per round",
+        )
+
+    roster = [(entry.player_id, players_by_id.get(entry.player_id, "?")) for entry in leaderboard]
+    return assign_shoutouts(roster, raw_dicts, best_single_round_impact, anchor)
