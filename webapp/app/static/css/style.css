@@ -483,6 +483,45 @@ a {
   letter-spacing: 0.03em;
 }
 
+/* Shoutouts */
+.shoutout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.shoutout-card {
+  background: var(--surface);
+  padding: 1rem 1.25rem;
+}
+
+.shoutout-name a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shoutout-name a:hover {
+  color: var(--brand);
+}
+
+.shoutout-headline {
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0.3rem 0 0.2rem;
+  letter-spacing: -0.01em;
+}
+
+.shoutout-detail {
+  color: var(--ink-secondary);
+  font-size: 0.88rem;
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
