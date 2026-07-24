@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.models import ImpactScore, KillEvent, MatchPlayer, Player, Round, RoundPlayerStat
 from app.scoring.impact import FORCE_THRESHOLD, econ_tier_name
+from app.services.friends import list_friend_ids
 from app.services.player_graphs import StateDiagram, build_session_round_win_diagram
 from app.services.shoutouts import PlayerShoutout, assign_shoutouts
 from app.services.sessions import SessionSummary
@@ -96,7 +97,9 @@ class SessionStats:
     shoutouts: list[PlayerShoutout]
 
 
-def get_session_stats(db: Session, session: SessionSummary) -> SessionStats:
+def get_session_stats(
+    db: Session, session: SessionSummary, viewer_player_id: int | None = None
+) -> SessionStats:
     match_ids = [m.id for m in session.matches]
     roster_player_ids = session.roster_player_ids
 
@@ -126,6 +129,9 @@ def get_session_stats(db: Session, session: SessionSummary) -> SessionStats:
     biggest_multi_kill, raw_counts = _compute_raw_session_counts(db, session, our_mp_to_player, players_by_id)
     fun_stats = _build_fun_stats(db, session, our_mp_to_player, players_by_id, biggest_multi_kill, raw_counts)
     shoutouts = _build_shoutouts(raw_counts, leaderboard, players_by_id)
+    if viewer_player_id is not None:
+        friend_ids = list_friend_ids(db, viewer_player_id) | {viewer_player_id}
+        shoutouts = [s for s in shoutouts if s.player_id in friend_ids]
 
     return SessionStats(
         leaderboard=leaderboard,

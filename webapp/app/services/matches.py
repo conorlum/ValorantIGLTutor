@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ImpactScore, KillEvent, Match, MatchPlayer, Player, Round, RoundPlayerStat
 from app.scoring.impact import FORCE_THRESHOLD
+from app.services.friends import list_friend_ids
 from app.services.shoutouts import PlayerShoutout, assign_shoutouts
 
 # Kept in sync with the same-named constants in app.services.session_stats
@@ -209,7 +210,9 @@ def get_match_summary(db: Session, match: Match) -> MatchSummary:
     )
 
 
-def get_match_shoutouts(db: Session, match: Match, summary: MatchSummary) -> list[PlayerShoutout]:
+def get_match_shoutouts(
+    db: Session, match: Match, summary: MatchSummary, viewer_player_id: int | None = None
+) -> list[PlayerShoutout]:
     """Gives every player in this match (both teams) one flattering,
     individual callout, via the same category catalog and assignment
     algorithm as the session-level Shoutouts feature
@@ -440,7 +443,16 @@ def get_match_shoutouts(db: Session, match: Match, summary: MatchSummary) -> lis
         )
 
     roster = [(p.match_player_id, p.display_name) for p in summary.players]
-    return assign_shoutouts(roster, raw_dicts, best_round_impact, anchor)
+    shoutouts = assign_shoutouts(roster, raw_dicts, best_round_impact, anchor)
+
+    if viewer_player_id is not None:
+        player_id_by_mp: dict[int, int] = {mp.id: mp.player_id for mp in match_players}
+        friend_ids = list_friend_ids(db, viewer_player_id) | {viewer_player_id}
+        shoutouts = [
+            s for s in shoutouts if player_id_by_mp.get(s.player_id) in friend_ids
+        ]
+
+    return shoutouts
 
 
 @dataclass

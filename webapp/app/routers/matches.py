@@ -39,7 +39,8 @@ def match_list(
 def match_detail(request: Request, external_id: str, db: Session = Depends(get_db)):
     match = get_match_or_404(db, external_id)
     summary = get_match_summary(db, match)
-    shoutouts = get_match_shoutouts(db, match, summary)
+    current_player = get_current_player(request, db)
+    shoutouts = get_match_shoutouts(db, match, summary, current_player.id if current_player else None)
     chart_data = {
         "labels": summary.round_numbers,
         "series": [
